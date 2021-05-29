@@ -125,7 +125,7 @@ begintemplate CA3PyramidalCell
 			
 			ena=45  ek=-80  		}
 		
-		insert_mechs(100)
+		//insert_mechs(100)
 		define_shape()
 	}
 

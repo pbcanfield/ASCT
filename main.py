@@ -29,17 +29,28 @@ def main(template_name, template_dir='cells', modfiles_dir=None):
     #TODO:
     # Define a plotting function in the cell object
 
-    cell_obj = Cell(template_dir, template_name)
-    optimizer = Optimizer(cell_obj.get_cell(), ([0.001,0.001,1e-6,1e-6], [0.1,0.1,1e-4,1e-3]), None, None)
     
-    optimizer.set_simulation_params(i_inj=0)
-    optimizer.simmulation_wrapper()
-    cell_obj.graph_potential()
-
+    cell_obj = Cell(template_dir, template_name)
+    
+    
+    optimizer = Optimizer(cell_obj.get_cell(), ([0.001, 0.001, 0.00001, 0.001,], [0.1, 0.1, 0.001, 0.1]), cell_obj.calculate_adapting_statistics)
     optimizer.set_simulation_params()
-    optimizer.simmulation_wrapper()
+    optimizer.simulation_wrapper()
+    target = cell_obj.calculate_adapting_statistics(sim_variables=optimizer.get_simulation_time_varibles(),DEBUG=True)
     cell_obj.graph_potential()
 
+    optimizer.set_target_statistics(target)
+    optimizer.set_simulation_optimization_params(['gbar_natCA3', 'gbar_kdrCA3', 'gbar_napCA3', 'gbar_imCA3'])
+    optimizer.run_inference(workers=1)
+    obtained = optimizer.get_sample()
+
+    print(obtained)
+    optimizer.simulation_wrapper(obtained)
+    cell_obj.calculate_adapting_statistics(sim_variables=optimizer.get_simulation_time_varibles(),DEBUG=True)
+    cell_obj.graph_potential()
+    
+
+    
 
 if __name__ == '__main__':
     main('CA3PyramidalCell', template_dir='cells/CA3Cell_Qian/CA3.hoc')
