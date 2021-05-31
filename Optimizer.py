@@ -34,9 +34,10 @@ class Optimizer():
 
         self.__cell_optimization_params = None
 
-        lows = torch.tensor(parameter_range[0], dtype=float)
-        highs = torch.tensor(parameter_range[1], dtype=float)
-        self.__prior = utils.BoxUniform(low=lows, high=highs)
+        if parameter_range != None:
+            lows = torch.tensor(parameter_range[0], dtype=float)
+            highs = torch.tensor(parameter_range[1], dtype=float)
+            self.__prior = utils.BoxUniform(low=lows, high=highs)
     
 
     def set_simulation_params(self, sim_run_time = 1500, delay = 400, inj_time = 500, i_inj = 0.2, v_init = -75):
@@ -90,18 +91,20 @@ class Optimizer():
     def set_target_statistics(self, stats):
         self.__observed_stats = stats
 
-    def get_sample(self, GRAPH=True):
-        samples = self.__posterior.sample((1000,), x=self.__observed_stats)
-        
-        if GRAPH:
-            fig, axes = utils.pairplot(samples,
-                            fig_size=(5,5),
-                            points_offdiag={'markersize': 6},
-                            points_colors='r');
-            
-            plt.show()
-        
+    def graph_performance(self, sample_threshold=1000):
+        samples = self.__posterior.sample((sample_threshold,), x=self.__observed_stats)
+        fig, axes = utils.pairplot(samples,
+                        fig_size=(5,5),
+                        points_offdiag={'markersize': 6},
+                        labels=self.__cell_optimization_params,
+                        points_colors='r');
+        plt.tight_layout()
+        plt.show()
+
+
+    def get_best_sample(self): 
         return self.__posterior.sample((1,), x=self.__observed_stats).numpy()[0]
 
 
-
+    def get_samples(self, sample_threshold):
+        return self.__posterior.sample((sample_threshold,), x=self.__observed_stats).numpy()

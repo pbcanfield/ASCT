@@ -114,4 +114,6 @@ class Cell:
 
         return np.concatenate((resting, average_peak, average_trough, adaptation_index, adaptation_speed, spike_num), axis=None)
             
-        
+    #This should be modified to return the summary function you want.
+    def summary_wrapper(self, *args, **kwargs):
+        return self.calculate_adapting_statistics(args[0], kwargs['spike_adaptation_threshold'], kwargs['DEBUG'])
