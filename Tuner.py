@@ -5,6 +5,8 @@ import itertools
 import os
 from scipy.stats.stats import pearsonr 
 import numpy as np
+import matplotlib.pyplot as plt
+
 
 class CellTuner:
     def __init__(self, current_injections, modfiles_dir, template_dir, template_name, parameter_range, optimization_parameters):
@@ -26,26 +28,23 @@ class CellTuner:
     def add_target_statistics(self, target_stats):
         self.__target_stats = target_stats
     
-    def set_simulation_params(self, sim_run_time = 1500, delay = 400, inj_time = 50, v_init = -75):
+    def set_simulation_params(self, sim_run_time = 1500, delay = 400, inj_time = 500, v_init = -75):
         self.__sim_run_time = sim_run_time
         self.__delay = delay
         self.__inj_time = inj_time
         self.__v_init = v_init
 
     def calculate_target_stats_from_model(self, template_dir, template_name):
-        target_cell = Cell(template_dir, template_name)
-        _sim_environ = Optimizer(target_cell.get_cell(), None, target_cell.calculate_adapting_statistics)
+        self.__target_cell = Cell(template_dir, template_name)
+        _sim_environ = Optimizer(self.__target_cell.get_cell(), None, self.__target_cell.calculate_adapting_statistics)
         
         self.__target_stats = []
         for i_inj in self.__current_injections:
             _sim_environ.set_simulation_params(sim_run_time=self.__sim_run_time, delay=self.__delay, inj_time=self.__inj_time, v_init=self.__v_init, i_inj=i_inj)
             _sim_environ.simulation_wrapper()
-            self.__target_stats.append(target_cell.calculate_adapting_statistics(_sim_environ.get_simulation_time_varibles()))
+            self.__target_stats.append(self.__target_cell.calculate_adapting_statistics(_sim_environ.get_simulation_time_varibles()))
 
     def optimize_current_injections(self, num_simulations = 500, inference_workers=1, sample_threshold=10):
-        
-
-
         #This could be parallelized for speedups.
         self.__parameter_samples = []
         
@@ -90,4 +89,39 @@ class CellTuner:
                 final[index] += p_set[index]
             final[index] /= len(best_set)
 
+        final = list(final)
+        self.__found_parameters = final
+
         return final
+
+    def compare_found_solution_to_model(self):
+        #Get the time vector.
+        time = self.__target_cell.get_time_as_numpy()
+
+        _sim_environ = Optimizer(self.__target_cell.get_cell(), None, self.__target_cell.calculate_adapting_statistics)
+
+        target_responses = []
+        for i_inj in self.__current_injections:
+            _sim_environ.set_simulation_params(sim_run_time=self.__sim_run_time, delay=self.__delay, inj_time=self.__inj_time, v_init=self.__v_init, i_inj=i_inj)
+            _sim_environ.simulation_wrapper()
+            target_responses.append(np.copy(self.__target_cell.get_potential_as_numpy()))
+        
+
+        #Now get the real cell with our current injections.
+        found_responses = []
+        for i_inj in self.__current_injections:
+            self.__optimizer.set_simulation_params(sim_run_time=self.__sim_run_time, delay=self.__delay, inj_time=self.__inj_time, v_init=self.__v_init, i_inj=i_inj)
+            self.__optimizer.simulation_wrapper(self.__found_parameters)
+            found_responses.append(np.copy(self.__to_optimize.get_potential_as_numpy()))
+
+        #Now plot everything.
+        fig, axs = plt.subplots(len(self.__current_injections))
+        
+        for index, ax in enumerate(axs):
+            ax.plot(time, target_responses[index], label='Target')
+            ax.plot(time, found_responses[index], label='Found')
+            ax.legend()
+        
+        fig.tight_layout()
+        
+        plt.show()

@@ -57,13 +57,15 @@ def test_tuner(template_name, template_dir='cells', modfiles_dir=None):
     if os.path.exists('x86_64'):
         os.system('rm -rf x86_64')
 
-    tuner = CellTuner([0.2,0.8], modfiles_dir, template_dir, template_name, ([0.001, 0.001, 0.00001, 0.001,], [0.1, 0.1, 0.001, 0.1]), ['gbar_natCA3', 'gbar_kdrCA3', 'gbar_napCA3', 'gbar_imCA3'])
+    tuner = CellTuner([0.2,0.4,0.8], modfiles_dir, template_dir, template_name, ([0.001, 0.001, 0.00001, 0.001], [0.1, 0.1, 0.001, 0.1]), ['gbar_natCA3', 'gbar_kdrCA3', 'gbar_napCA3', 'gbar_imCA3'])
     tuner.set_simulation_params()
     tuner.calculate_target_stats_from_model(template_dir, template_name)
-    tuner.optimize_current_injections(num_simulations=500)
+    tuner.optimize_current_injections(num_simulations=2000)
     found_parameters = tuner.find_best_parameter_set()
 
     print(found_parameters)
+
+    tuner.compare_found_solution_to_model()
     
 
 if __name__ == '__main__':
