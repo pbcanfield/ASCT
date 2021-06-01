@@ -20,13 +20,14 @@ class Optimizer():
     #Takes a parameter range tuple which consists of the lower and upper parameter tensors.
     #Takes a summary_stat function which calculates the summary statistics for the optimizer.
     #Takes some target statistics to match.
-    def __init__(self, cell, parameter_range, summary_funct):
+    def __init__(self, cell, parameter_range, summary_funct, spike_adaptation_threshold=0.95, spike_height_threshold=0):
         #Set some parameters.
         self.__cell = cell
         # self.__lower = parameter_range[0]
         # self.__upper = parameter_range[1]
         self.__summary_funct = summary_funct
-
+        self.__spike_adaptation_threshold = spike_adaptation_threshold
+        self.__spike_height_threshold=spike_height_threshold
         #Set the default simulation parameters.
         self.set_simulation_params()
         
@@ -49,6 +50,9 @@ class Optimizer():
 
     def set_simulation_optimization_params(self, param_list):
         self.__cell_optimization_params = param_list
+
+    def get_simulation_optimization_params(self):
+        return self.__cell_optimization_params
 
     def simulation_wrapper(self, *args, **kwargs):
         
@@ -76,7 +80,7 @@ class Optimizer():
         h.run()
 
         #Return the summary statistics based on this simulation run.
-        return self.__summary_funct(sim_variables=self.get_simulation_time_varibles())
+        return self.__summary_funct(sim_variables=self.get_simulation_time_varibles(), spike_adaptation_threshold=self.__spike_adaptation_threshold, spike_height_threshold=self.__spike_height_threshold)
 
 
 

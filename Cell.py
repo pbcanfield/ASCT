@@ -47,7 +47,7 @@ class Cell:
     #                  f_steadystate is the steady state instaneous frequency (last spike probably)
     #Adapation speed: Some sort of metric which captures how fast it adapts.
     #Number of spikes. 
-    def calculate_adapting_statistics(self, sim_variables, spike_adaption_threshold = 0.99, DEBUG=False):
+    def calculate_adapting_statistics(self, sim_variables, spike_height_threshold=0, spike_adaptation_threshold=0.99, DEBUG=False):
         
         sim_run_time = sim_variables[0]
         delay = sim_variables[1]
@@ -74,7 +74,7 @@ class Cell:
             resting = np.mean(trace[end_injection:end_point])
         
         #Average spike and trough voltage.
-        spike_times = np.asarray(find_peaks(trace,height=0)[0])
+        spike_times = np.asarray(find_peaks(trace,height=spike_height_threshold)[0])
         
         #Take care of the case where nothing spikes.
         if len(spike_times) == 0:
@@ -84,7 +84,7 @@ class Cell:
         
 
         average_peak = np.mean(np.take(trace, spike_times))
-        average_trough = np.mean(np.take(trace, np.asarray(find_peaks(-trace,height=0)[0])))
+        average_trough = np.mean(np.take(trace, np.asarray(find_peaks(-trace,height=spike_height_threshold)[0])))
 
         #Take care of the case where there is only one spike.
         if len(spike_times) == 1:
@@ -98,7 +98,7 @@ class Cell:
 
         #Adaptation speed.
         instantaneous_freq = 1.0 / np.diff(spike_times)
-        adaptation_speed = np.where(np.isclose(instantaneous_freq, f_min, spike_adaption_threshold))[0][0]
+        adaptation_speed = np.where(np.isclose(instantaneous_freq, f_min, spike_adaptation_threshold))[0][0]
 
         #Number of spikes
         spike_num = len(spike_times)    

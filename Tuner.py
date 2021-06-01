@@ -1,3 +1,4 @@
+import scipy as sp
 from Optimizer import Optimizer
 from Cell import Cell
 from neuron import h
@@ -9,8 +10,9 @@ import matplotlib.pyplot as plt
 
 
 class CellTuner:
-    def __init__(self, current_injections, modfiles_dir, template_dir, template_name, parameter_range, optimization_parameters):
+    def __init__(self, current_injections, modfiles_dir, template_dir, template_name, parameter_range, optimization_parameters, spike_height_threshold=0, spike_adaptation_threshold=0.95):
         self.__current_injections = current_injections
+        self.__spike_threshold = spike_height_threshold
 
          #First lets try to compile our modfiles.
         if os.system('nrnivmodl %s' % modfiles_dir) == 0:
@@ -22,7 +24,7 @@ class CellTuner:
         h.load_file('stdrun.hoc')
 
         self.__to_optimize = Cell(template_dir, template_name)
-        self.__optimizer = Optimizer(self.__to_optimize.get_cell(), parameter_range, self.__to_optimize.calculate_adapting_statistics)
+        self.__optimizer = Optimizer(self.__to_optimize.get_cell(), parameter_range, self.__to_optimize.calculate_adapting_statistics, spike_height_threshold=spike_height_threshold,spike_adaptation_threshold=spike_adaptation_threshold)
         self.__optimizer.set_simulation_optimization_params(optimization_parameters)
 
     def add_target_statistics(self, target_stats):
@@ -125,3 +127,6 @@ class CellTuner:
         fig.tight_layout()
         
         plt.show()
+
+    def get_optimial_parameter_set(self):
+        return dict(zip(self.__optimizer.get_simulation_optimization_params(), self.__found_parameters))
