@@ -2,6 +2,7 @@ import os
 from neuron import h
 from numpy import nan_to_num
 import scipy as sp
+from scipy.stats.stats import mannwhitneyu
 from Cell import Cell
 from Optimizer import Optimizer
 from Tuner import CellTuner
@@ -54,8 +55,9 @@ def test_optimizer(template_name, template_dir='cells', modfiles_dir=None):
 def tune_with_template(current_injections, low, high, 
                        parameter_list, num_simulations,
                        sim_run_time, delay, inj_time, v_init, spike_height, spike_adaptation,
-                       template_name, 
-                       template_dir, modfiles_dir):
+                       template_name, target_template_name,
+                       target_template_dir, template_dir, modfiles_dir,
+                       threshold_sample_size, workers):
 
     
     if os.path.exists('x86_64'):
@@ -63,11 +65,15 @@ def tune_with_template(current_injections, low, high,
 
     tuner = CellTuner(current_injections, modfiles_dir, template_dir, template_name, (low, high), parameter_list,spike_height_threshold=spike_height,spike_adaptation_threshold=spike_adaptation)
     tuner.set_simulation_params(sim_run_time=sim_run_time, delay=delay,inj_time=inj_time,v_init=v_init)
-    tuner.calculate_target_stats_from_model(template_dir, template_name)
-    tuner.optimize_current_injections(num_simulations=num_simulations)
+    tuner.calculate_target_stats_from_model(target_template_dir, target_template_name)
+    tuner.optimize_current_injections(num_simulations=num_simulations,inference_workers=workers, sample_threshold=threshold_sample_size)
+
+    tuner.find_best_parameter_set()
 
     print('The optimizer found the following parameter set:')
     print(tuner.get_optimial_parameter_set())
+
+    print('The matching ratio is: %f (closer to 1 is better)' % tuner.get_matching_ratio())
 
     tuner.compare_found_solution_to_model()
 
@@ -125,7 +131,11 @@ if __name__ == '__main__':
                        spike_height=run['spike_threshold'],
                        spike_adaptation=run['spike_adaptation'],
                        template_name=manifest['template_name'],
+                       target_template_name=manifest['target_template_name'],
+                       target_template_dir=manifest['target_template_dir'],
                        template_dir=manifest['template_dir'],
-                       modfiles_dir=manifest['modfiles_dir'])
+                       modfiles_dir=manifest['modfiles_dir'],
+                       threshold_sample_size=run['threshold_sample_size'],
+                       workers=run['workers'])
 
 

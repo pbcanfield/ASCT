@@ -69,18 +69,26 @@ class CellTuner:
 
         #Now lets calculate the correlation coeffient sums for each set of parameters.
         correlation_sums = [0] * len(all_permulations)
+        
         for index,parameter_set in enumerate(all_permulations):
             pairs = itertools.combinations(parameter_set,2)
+            
+            num_combinations = 0
             for (a,b) in pairs:
                 correlation_sums[index] += pearsonr(a,b)[0]
+                num_combinations += 1
 
 
         #get the parameter set with the highest total score.
-        best_set = all_permulations[correlation_sums.index(max(correlation_sums))]
+        closest_match = max(correlation_sums)
+        best_set = all_permulations[correlation_sums.index(closest_match)]
+
+        self.__final_parameter_matching_ratio = closest_match / num_combinations
 
         if SHOW_BEST_SET:
             print('Best parameter set found.')
             print(best_set)
+            print(self.__final_parameter_matching_ratio)
 
         num_parameters = len(best_set[0])
         #Return the average of each value in all parameter sets.
@@ -97,9 +105,6 @@ class CellTuner:
         return final
 
     def compare_found_solution_to_model(self):
-        #Get the time vector.
-        time = self.__target_cell.get_time_as_numpy()
-
         _sim_environ = Optimizer(self.__target_cell.get_cell(), None, self.__target_cell.calculate_adapting_statistics)
 
         target_responses = []
@@ -115,6 +120,10 @@ class CellTuner:
             self.__optimizer.set_simulation_params(sim_run_time=self.__sim_run_time, delay=self.__delay, inj_time=self.__inj_time, v_init=self.__v_init, i_inj=i_inj)
             self.__optimizer.simulation_wrapper(self.__found_parameters)
             found_responses.append(np.copy(self.__to_optimize.get_potential_as_numpy()))
+        
+        #Get the time vector.
+        time = self.__target_cell.get_time_as_numpy()
+
 
         #Now plot everything.
         fig, axs = plt.subplots(len(self.__current_injections))
@@ -130,3 +139,6 @@ class CellTuner:
 
     def get_optimial_parameter_set(self):
         return dict(zip(self.__optimizer.get_simulation_optimization_params(), self.__found_parameters))
+
+    def get_matching_ratio(self):
+        return self.__final_parameter_matching_ratio
