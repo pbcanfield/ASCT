@@ -89,8 +89,22 @@ class Optimizer():
         return (self.__sim_run_time, self.__delay, self.__inj_time)
 
     
-    def run_inference(self, num_simulations=1000, workers=8):
-        self.__posterior = infer(self.simulation_wrapper, self.__prior, method='SNPE', num_simulations=num_simulations, num_workers=workers)
+    def run_inference(self, num_simulations=1000, workers=8, num_rounds = 1):
+        
+        #Get stuff ready for sbi.
+        simulator, self.__prior = prepare_for_sbi(self.simulation_wrapper, self.__prior)
+        inference = SNPE(prior=self.__prior)
+
+        proposal = self.__prior
+        x_o = self.__observed_stats
+
+        for _ in range(num_rounds):
+            theta, x = simulate_for_sbi(simulator, proposal, num_simulations=num_simulations,num_workers=workers)
+            density_estimator = inference.append_simulations(theta, x, proposal=proposal).train()
+            self.__posterior = inference.build_posterior(density_estimator)
+            proposal = self.__posterior.set_default_x(self.__observed_stats)
+
+
 
     def set_target_statistics(self, stats):
         self.__observed_stats = stats

@@ -53,7 +53,7 @@ def test_optimizer(template_name, template_dir='cells', modfiles_dir=None):
     #cell_obj.graph_potential()
     
 def tune_with_template(current_injections, low, high, 
-                       parameter_list, num_simulations,
+                       parameter_list, num_simulations, num_rounds,
                        sim_run_time, delay, inj_time, v_init, spike_height, spike_adaptation,
                        template_name, target_template_name,
                        target_template_dir, template_dir, modfiles_dir,
@@ -124,6 +124,7 @@ if __name__ == '__main__':
                        high=optimization_parameters['highs'],
                        parameter_list=optimization_parameters['parameters'],
                        num_simulations=run['num_simulations'],
+                       num_rounds = run['num_rounds'],
                        sim_run_time=run['tstop'],
                        delay=run['delay'],
                        inj_time=run['duration'],

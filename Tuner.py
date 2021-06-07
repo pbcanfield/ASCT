@@ -46,14 +46,14 @@ class CellTuner:
             _sim_environ.simulation_wrapper()
             self.__target_stats.append(self.__target_cell.calculate_adapting_statistics(_sim_environ.get_simulation_time_varibles()))
 
-    def optimize_current_injections(self, num_simulations = 500, inference_workers=1, sample_threshold=10):
+    def optimize_current_injections(self, num_simulations = 500, num_rounds=1, inference_workers=1, sample_threshold=10):
         #This could be parallelized for speedups.
         self.__parameter_samples = []
         
         for target_stat, current_injection in zip(self.__target_stats, self.__current_injections):
             self.__optimizer.set_target_statistics(target_stat)
             self.__optimizer.set_simulation_params(i_inj=current_injection)
-            self.__optimizer.run_inference(num_simulations=num_simulations, workers=inference_workers)
+            self.__optimizer.run_inference(num_simulations=num_simulations, workers=inference_workers, num_rounds=num_rounds)
             self.__parameter_samples.append(self.__optimizer.get_samples(sample_threshold=sample_threshold))
             
 
