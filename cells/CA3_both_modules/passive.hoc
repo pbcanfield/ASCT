@@ -1,0 +1,74 @@
+load_file("CA3.hoc")
+
+SIMTIME = 1000
+DELAY = 300
+RINAMP = -0.1
+
+//Should match the cells leak reversal potential
+v_init = -75
+
+objectvar cell
+cell = new CA3Cell()
+
+objectvar membrane_voltage, time
+membrane_voltage = new Vector()
+time = new Vector()
+
+time.record(&t)
+membrane_voltage.record(&cell.soma.v(0.5))
+
+//Just run the cell to calculate v_rest
+tstop = SIMTIME + DELAY
+
+run()
+
+v_rest = membrane_voltage.x[membrane_voltage.size() - 1]
+
+printf("The cell's v_rest is: %f\n",v_rest)
+
+//Provide negative current injection to calculate r_in
+
+objectvar i_inj
+cell.soma i_inj = new IClamp(0.5)
+i_inj.del = DELAY
+i_inj.dur = SIMTIME
+i_inj.amp = RINAMP
+
+run()
+
+v_final_rin = membrane_voltage.x[membrane_voltage.size() - 1]
+
+r_in = (v_final_rin - v_rest)/RINAMP
+
+printf("The cell's R_in is: %f\n", r_in)
+
+//Now calculate tau
+target = (membrane_voltage.x[membrane_voltage.size() - 1] - v_rest) * 0.632
+target = target + v_rest
+
+//Search through the vector for a suitable candidate
+index = 0
+
+//You may have to change this to find a tau value
+padding = 0.01
+
+for (i = 0; i < membrane_voltage.size(); i = i + 1) {
+
+    current = membrane_voltage.x[i]
+
+    if (current <= target + padding && current >= target - padding) {
+        index = i
+    }
+}
+
+final = membrane_voltage.x[membrane_voltage.size() - 1]
+
+objectvar g
+g = new Graph()
+g.size(0,SIMTIME + DELAY, final - 1, v_rest + 1)
+g.vector(membrane_voltage.size(), &time.x[0], &membrane_voltage.x[0])
+g.flush()
+
+tau = time.x[index] - DELAY
+
+printf("The cell's tau is: %f\n", tau)

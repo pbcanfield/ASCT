@@ -1,0 +1,121 @@
+begintemplate CA3Cell
+	
+	public NumSoma
+	NumSoma = 1
+
+	public soma
+	create soma[NumSoma]
+
+	public all, somatic, basal, apical, axonal
+	objref all, somatic, basal, apical, axonal
+	objref this
+
+	public IzhiSoma
+
+	public init
+
+	objref IzhiSoma
+	
+	public setv
+		proc setv() {
+		     forall v = $1
+		   }
+
+	
+	proc init() {
+		/////// topology ////////
+		//create soma[0]
+
+		all = new SectionList()
+		somatic = new SectionList()
+		basal = new SectionList()
+		apical = new SectionList()
+		axonal = new SectionList()
+
+		for i=0,NumSoma soma[i] {
+			all.append()
+			somatic.append()
+			} 
+		
+		/////// geometry ////////
+		soma[0] {nseg=1 L=40 diam=40} // changed L & diam
+	
+		/////// biophysics ///////
+		soma[0] {
+			cm= 1.5		//(microF/cm2)
+			Ra= 210		//(ohm-cm)
+			
+			IzhiSoma = new IZH(0.5)
+		
+			IzhiSoma.k = 0.0015
+			IzhiSoma.vr = -75
+			IzhiSoma.vt = -58
+			IzhiSoma.a = 0.01
+			IzhiSoma.b = .002
+			IzhiSoma.vpeak = 29
+			IzhiSoma.c = -63
+			IzhiSoma.d = 0.06//3.9
+			IzhiSoma.dACH = 0.01
+			IzhiSoma.cACH = 2
+			IzhiSoma.vrACH = 5
+			
+			// IzhiSoma.uinit = u
+		  	}
+	
+			////////////// Burst then tonic - This is another type of pyramidal cells as reported in Brown and Randall 2008
+					// soma {
+			// cm= 1.5		//(microF/cm2)
+			// Ra= 210		//(ohm-cm)
+			// u = 0
+			
+			// IzhiSoma = new IZH(0.5)
+		
+			// IzhiSoma.k = 0.0015
+			// IzhiSoma.vr = -75
+			// IzhiSoma.vt = -58
+			// IzhiSoma.a = 0.004 // from 0.01
+			// IzhiSoma.b = .002
+			// IzhiSoma.vpeak = 29
+			// IzhiSoma.c = -62 // from -63
+			// IzhiSoma.d = 0.05 // from 0.06//3.9
+			// IzhiSoma.dACH = 0.01
+			// IzhiSoma.cACH = 2
+			// IzhiSoma.vrACH = 5
+			
+			// IzhiSoma.uinit = u
+		  	// }
+			
+			
+			//////////////// With burst and silence -This is another type of pyramidal cells as reported in Brown and Randall 2008
+								// soma {
+			// cm= 1.5		//(microF/cm2)
+			// Ra= 210		//(ohm-cm)
+			// u = 0
+			
+			// IzhiSoma = new IZH(0.5)
+		
+			// IzhiSoma.k = 0.0021
+			// IzhiSoma.vr = -75
+			// IzhiSoma.vt = -58
+			// IzhiSoma.a = 0.003 // from 0.01
+			// IzhiSoma.b = .002
+			// IzhiSoma.vpeak = 29
+			// IzhiSoma.c = -60 // from -63
+			// IzhiSoma.d = 0.03 // from 0.06//3.9
+			// IzhiSoma.dACH = 0.01
+			// IzhiSoma.cACH = 2
+			// IzhiSoma.vrACH = 5
+			
+			// IzhiSoma.uinit = u
+		  	// }
+		define_shape()
+
+	}
+		public setu
+	proc setu() {
+	forall u = $1
+	IzhiSoma.uinit = $1
+	}
+	
+
+endtemplate CA3Cell

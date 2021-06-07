@@ -1,0 +1,142 @@
+load_file("CA3.hoc")
+load_file("graphics_library.hoc")
+
+//simuation constants
+SIMRUNTIME = 1500
+DELAY = 400
+INJTIME = 500
+I_INJ = 0.8
+
+tstop = SIMRUNTIME
+v_init = -75
+
+objectvar membrane_voltage, time
+membrane_voltage = new Vector()
+time = new Vector()
+
+objectvar cell
+cell = new CA3Cell()
+
+//record the cells membrane voltage.
+membrane_voltage.record(&cell.soma.v(0.5))
+time.record(&t)
+
+/*
+//Record the currents.
+objref g_cvt, nap_vec, nat_vec, sahp_vec, kdr_vec, capool_vec, ca_vec
+g_cvt = new Graph()
+nap_vec = new Vector()
+nat_vec = new Vector()
+sahp_vec = new Vector()
+kdr_vec = new Vector()
+capool_vec = new Vector()
+ca_vec = new Vector()
+
+nap_vec.record(&cell.soma.i_nap(0.5))
+nat_vec.record(&cell.soma.i_natCA3(0.5))
+sahp_vec.record(&cell.soma.i_sAHP(0.5))
+kdr_vec.record(&cell.soma.i_kdrCA3(0.5))
+capool_vec.record(&cell.soma.xx_capool())
+ca_vec.record(&cell.soma.ica_cal)
+*/
+
+//First graph the membrane potential vs time plot.
+
+//Create a current clamp.
+objectvar i_inj
+cell.soma i_inj = new IClamp(0.5)
+i_inj.del = DELAY
+i_inj.dur = INJTIME
+i_inj.amp = I_INJ
+
+//run the simulation and plot the outcome
+run()
+
+//Membrane voltage vs. time
+objectvar g_mvt
+g_mvt = new Graph()
+
+proc mgraph() {
+    g_mvt.size(0,SIMRUNTIME, 30, -90)
+    g_mvt.vector(membrane_voltage.size(), &time.x[0], &membrane_voltage.x[0])
+    g_mvt.flush()
+}
+
+
+
+objref nc, nil, spvec
+func runSim(){
+
+
+    cell.soma nc = new NetCon(&v(0.5),nil)
+    spvec = new Vector()
+    nc.record(spvec)
+
+    i_inj.amp=$1
+
+    run()
+
+    return (spvec.size() / (INJTIME)) * 1000
+}
+
+printf("Cell fi at %f nA injection: %f\n",I_INJ,runSim(I_INJ))
+
+/*
+proc cgraph() {
+    //Graph currents.
+    g_cvt.color(1)
+    g_cvt.label("Black: nap")
+    g_cvt.vector(nap_vec.size(), &time.x[0], &nap_vec.x[0])
+
+    g_cvt.color(2)
+    g_cvt.label("Red: nat")
+    g_cvt.vector(nat_vec.size(), &time.x[0], &nat_vec.x[0])
+
+    g_cvt.color(3)
+    g_cvt.label("Blue: sAHP")
+    g_cvt.vector(sahp_vec.size(), &time.x[0], &sahp_vec.x[0])
+
+    g_cvt.color(4)
+    g_cvt.label("Green: kdr")
+    g_cvt.vector(kdr_vec.size(), &time.x[0], &kdr_vec.x[0])
+
+    g_cvt.color(5)
+    g_cvt.label("Orange: ca_pool")
+    g_cvt.vector(capool_vec.size(), &time.x[0], &capool_vec.x[0])
+
+    g_cvt.color(6)
+    g_cvt.label("Brown: ca")
+    g_cvt.vector(ca_vec.size(), &time.x[0], &ca_vec.x[0])
+
+    g_cvt.flush()
+
+    g_cvt.exec_menu("View = plot")
+}
+*/
+
+mgraph()
+//cgraph()
+
+
+
+objectvar g_fi, target, reported, current_inj
+g_fi = new Graph()
+reported = new Vector(10)
+current_inj = new Vector(10)
+
+count = 0
+for (i = 0; i < 1.0; i += 0.1) {
+    reported.x[count] = runSim(i)
+    current_inj.x[count] = i
+    count += 1
+}
+
+
+
+g_fi.color(1)
+g_fi.vector(10, &current_inj.x[0],&reported.x[0])
+
+ g_fi.exec_menu("View = plot")
+
+g_fi.flush()
+
