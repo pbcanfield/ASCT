@@ -66,7 +66,7 @@ def tune_with_template(current_injections, low, high,
     tuner = CellTuner(current_injections, modfiles_dir, template_dir, template_name, (low, high), parameter_list,spike_height_threshold=spike_height,spike_adaptation_threshold=spike_adaptation)
     tuner.set_simulation_params(sim_run_time=sim_run_time, delay=delay,inj_time=inj_time,v_init=v_init)
     tuner.calculate_target_stats_from_model(target_template_dir, target_template_name)
-    tuner.optimize_current_injections(num_simulations=num_simulations,inference_workers=workers, sample_threshold=threshold_sample_size)
+    tuner.optimize_current_injections(num_simulations=num_simulations,inference_workers=workers, sample_threshold=threshold_sample_size, num_rounds=num_rounds)
 
     tuner.find_best_parameter_set()
 

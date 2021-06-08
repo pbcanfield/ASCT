@@ -12,7 +12,8 @@
         "spike_adaptation": 0.95,
         "delay": 100,
         "duration": 200,
-        "num_simulations": 2000,
+        "num_simulations": 5000,
+        "num_rounds": 4,
         "threshold_sample_size": 5,
         "workers": 1
       },
@@ -20,7 +21,7 @@
         "v_init": -75.0
       },
       "optimization_parameters": {
-        "current_injections": [0.2,0.4],
+        "current_injections": [0.2,0.4,0.8],
         "parameters": ["gbar_natCA3", "gbar_kdrCA3", "gbar_napCA3", "gbar_imCA3", "tau_imCA3"],
         "lows": [0.001, 6.0e-04, 1.0e-05, 5.0e-06, 1.0],
         "highs": [0.36, 0.18, 0.005, 0.017, 10.0]
