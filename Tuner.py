@@ -104,7 +104,7 @@ class CellTuner:
 
         return final
 
-    def compare_found_solution_to_model(self):
+    def compare_found_solution_to_model(self, display=False, save_dir=None):
         _sim_environ = Optimizer(self.__target_cell.get_cell(), None, self.__target_cell.calculate_adapting_statistics)
 
         target_responses = []
@@ -135,7 +135,12 @@ class CellTuner:
         
         fig.tight_layout()
         
-        plt.show()
+
+        if display:  
+            plt.show()
+        
+        if save_dir != None:
+            plt.savefig(os.path.join(save_dir, 'Model_Comparison.png'))
 
     def get_optimial_parameter_set(self):
         return dict(zip(self.__optimizer.get_simulation_optimization_params(), self.__found_parameters))

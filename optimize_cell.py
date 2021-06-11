@@ -57,7 +57,7 @@ def tune_with_template(current_injections, low, high,
                        sim_run_time, delay, inj_time, v_init, spike_height, spike_adaptation,
                        template_name, target_template_name,
                        target_template_dir, template_dir, modfiles_dir,
-                       threshold_sample_size, workers):
+                       threshold_sample_size, workers, display,save_dir):
 
     
     if os.path.exists('x86_64'):
@@ -73,9 +73,9 @@ def tune_with_template(current_injections, low, high,
     print('The optimizer found the following parameter set:')
     print(tuner.get_optimial_parameter_set())
 
-    print('The matching ratio is: %f (closer to 1 is better)' % tuner.get_matching_ratio())
+    #print('The matching ratio is: %f (closer to 1 is better)' % tuner.get_matching_ratio())
 
-    tuner.compare_found_solution_to_model()
+    tuner.compare_found_solution_to_model(display,save_dir)
 
 
 def parse_config(config_directory):
@@ -108,6 +108,9 @@ if __name__ == '__main__':
     # argument_parser.add_argument('template_name', type=str, help='the name of the HOC template')
 
     argument_parser.add_argument('config_dir', type=str, help='the optimization config file directory')
+    argument_parser.add_argument('save_dir', nargs='?', type=str, default=None, help='[optional] the directory to save figures to')
+    argument_parser.add_argument('-g', default=False, action='store_true', help='displays graphics')
+    
 
     args = argument_parser.parse_args()
 
@@ -137,6 +140,8 @@ if __name__ == '__main__':
                        template_dir=manifest['template_dir'],
                        modfiles_dir=manifest['modfiles_dir'],
                        threshold_sample_size=run['threshold_sample_size'],
-                       workers=run['workers'])
+                       workers=run['workers'],
+                       display=args.g,
+                       save_dir=args.save_dir)
 
 
