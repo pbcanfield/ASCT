@@ -1,8 +1,8 @@
 {
     "manifest": {
         "template_name": "CA3PyramidalCell",
-        "target_template_name": "CA3Cell",
         "template_dir": "cells/CA3Cell_Qian/CA3.hoc",
+        "target_template_name": "CA3Cell",
         "target_template_dir": "cells/CA3Cell_Izh/CA3.hoc",
         "modfiles_dir": "cells/CA3Cell_Qian/modfiles"
       },

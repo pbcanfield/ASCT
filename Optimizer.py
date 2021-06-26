@@ -55,8 +55,6 @@ class Optimizer():
         return self.__cell_optimization_params
 
     def simulation_wrapper(self, *args, **kwargs):
-        
-        
         #Set simulation parameters.
         h.tstop = self.__sim_run_time
         h.v_init = self.__v_init

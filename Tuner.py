@@ -83,7 +83,7 @@ class CellTuner:
         closest_match = max(correlation_sums)
         best_set = all_permulations[correlation_sums.index(closest_match)]
 
-        self.__final_parameter_matching_ratio = closest_match / num_combinations
+        self.__final_parameter_matching_ratio = closest_match / num_combinations if num_combinations != 0 else 1
 
         if SHOW_BEST_SET:
             print('Best parameter set found.')
@@ -126,15 +126,22 @@ class CellTuner:
 
 
         #Now plot everything.
-        fig, axs = plt.subplots(len(self.__current_injections))
+        current_injection_length = len(self.__current_injections)
+        fig, axs = plt.subplots(current_injection_length)
         
-        for index, ax in enumerate(axs):
-            ax.plot(time, target_responses[index], label='Target')
-            ax.plot(time, found_responses[index], label='Found')
-            ax.legend()
-        
+
+        if current_injection_length > 1:
+            for index, ax in enumerate(axs):
+                ax.plot(time, target_responses[index], label='Target')
+                ax.plot(time, found_responses[index], label='Found')
+                ax.legend()
+        else:
+            axs.plot(time, target_responses[0], label='Target')
+            axs.plot(time, found_responses[0], label='Found')
+            axs.legend()
+
+
         fig.tight_layout()
-        
 
         if display:  
             plt.show()
