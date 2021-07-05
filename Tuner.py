@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 
 
 class CellTuner:
-    def __init__(self, current_injections, modfiles_dir, template_dir, template_name, parameter_range, optimization_parameters, spike_height_threshold=0, spike_adaptation_threshold=0.95):
+    def __init__(self, current_injections, modfiles_dir, template_dir, template_name, parameter_range, optimization_parameters, spike_height_threshold=0, spike_adaptation_threshold=0.95, learn_stats=False):
         self.__current_injections = current_injections
         self.__spike_threshold = spike_height_threshold
 
@@ -23,8 +23,9 @@ class CellTuner:
         #Now load in the standard run hoc.
         h.load_file('stdrun.hoc')
 
+        self.__learn_stats = learn_stats
         self.__to_optimize = Cell(template_dir, template_name)
-        self.__optimizer = Optimizer(self.__to_optimize.get_cell(), parameter_range, self.__to_optimize.calculate_adapting_statistics, spike_height_threshold=spike_height_threshold,spike_adaptation_threshold=spike_adaptation_threshold)
+        self.__optimizer = Optimizer(self.__to_optimize.get_cell(), parameter_range, self.__to_optimize.calculate_adapting_statistics if not learn_stats else self.__to_optimize.generate_simulation_image, spike_height_threshold=spike_height_threshold,spike_adaptation_threshold=spike_adaptation_threshold,learn_stats=learn_stats)
         self.__optimizer.set_simulation_optimization_params(optimization_parameters)
 
     def add_target_statistics(self, target_stats):
@@ -36,15 +37,16 @@ class CellTuner:
         self.__inj_time = inj_time
         self.__v_init = v_init
 
-    def calculate_target_stats_from_model(self, template_dir, template_name):
+    def calculate_target_stats_from_model(self, template_dir, template_name):    
         self.__target_cell = Cell(template_dir, template_name)
-        _sim_environ = Optimizer(self.__target_cell.get_cell(), None, self.__target_cell.calculate_adapting_statistics)
+        target = self.__target_cell.generate_simulation_image if self.__learn_stats else self.__target_cell.calculate_adapting_statistics
+    
+        _sim_environ = Optimizer(self.__target_cell.get_cell(), None, target,learn_stats=self.__learn_stats)
         
         self.__target_stats = []
         for i_inj in self.__current_injections:
             _sim_environ.set_simulation_params(sim_run_time=self.__sim_run_time, delay=self.__delay, inj_time=self.__inj_time, v_init=self.__v_init, i_inj=i_inj)
-            _sim_environ.simulation_wrapper()
-            self.__target_stats.append(self.__target_cell.calculate_adapting_statistics(_sim_environ.get_simulation_time_varibles()))
+            self.__target_stats.append(_sim_environ.simulation_wrapper())
 
     def optimize_current_injections(self, num_simulations = 500, num_rounds=1, inference_workers=1, sample_threshold=10):
         #This could be parallelized for speedups.

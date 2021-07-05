@@ -39,6 +39,11 @@ def test_optimizer(template_name, template_dir='cells', modfiles_dir=None):
     optimizer = Optimizer(cell_obj.get_cell(), ([0.001, 0.001, 0.00001, 0.001,], [0.1, 0.1, 0.001, 0.1]), cell_obj.calculate_adapting_statistics)
     optimizer.set_simulation_params()
     optimizer.simulation_wrapper()
+
+    print(cell_obj.generate_simulation_image(save_img_dir='generated1.png'))
+    #cell_obj.graph_potential(save_img_dir='original.png')
+    
+    '''
     target = cell_obj.calculate_adapting_statistics(sim_variables=optimizer.get_simulation_time_varibles(),DEBUG=True)
     #cell_obj.graph_potential()
 
@@ -51,8 +56,9 @@ def test_optimizer(template_name, template_dir='cells', modfiles_dir=None):
     optimizer.simulation_wrapper(obtained)
     cell_obj.calculate_adapting_statistics(sim_variables=optimizer.get_simulation_time_varibles(),DEBUG=True)
     #cell_obj.graph_potential()
+    '''
     
-def tune_with_template(current_injections, low, high, 
+def tune_with_template_summary(current_injections, low, high, 
                        parameter_list, num_simulations, num_rounds,
                        sim_run_time, delay, inj_time, v_init, spike_height, spike_adaptation,
                        template_name, target_template_name,
@@ -64,6 +70,31 @@ def tune_with_template(current_injections, low, high,
         os.system('rm -rf x86_64')
 
     tuner = CellTuner(current_injections, modfiles_dir, template_dir, template_name, (low, high), parameter_list,spike_height_threshold=spike_height,spike_adaptation_threshold=spike_adaptation)
+    tuner.set_simulation_params(sim_run_time=sim_run_time, delay=delay,inj_time=inj_time,v_init=v_init)
+    tuner.calculate_target_stats_from_model(target_template_dir, target_template_name)
+    tuner.optimize_current_injections(num_simulations=num_simulations,inference_workers=workers, sample_threshold=threshold_sample_size, num_rounds=num_rounds)
+
+    tuner.find_best_parameter_set()
+
+    print('The optimizer found the following parameter set:')
+    print(tuner.get_optimial_parameter_set())
+
+    #print('The matching ratio is: %f (closer to 1 is better)' % tuner.get_matching_ratio())
+
+    tuner.compare_found_solution_to_model(display,save_dir)
+
+def tune_with_template_cnn(current_injections, low, high, 
+                       parameter_list, num_simulations, num_rounds,
+                       sim_run_time, delay, inj_time, v_init,
+                       template_name, target_template_name,
+                       target_template_dir, template_dir, modfiles_dir,
+                       threshold_sample_size, workers, display,save_dir):
+
+    
+    if os.path.exists('x86_64'):
+        os.system('rm -rf x86_64')
+
+    tuner = CellTuner(current_injections, modfiles_dir, template_dir, template_name, (low, high), parameter_list,learn_stats=True)
     tuner.set_simulation_params(sim_run_time=sim_run_time, delay=delay,inj_time=inj_time,v_init=v_init)
     tuner.calculate_target_stats_from_model(target_template_dir, target_template_name)
     tuner.optimize_current_injections(num_simulations=num_simulations,inference_workers=workers, sample_threshold=threshold_sample_size, num_rounds=num_rounds)
@@ -94,10 +125,11 @@ def parse_config(config_directory):
 
 
 if __name__ == '__main__':
-    #test_optimizer('CA3PyramidalCell', template_dir='cells/CA3Cell_Qian/CA3.hoc')
+    test_optimizer('CA3PyramidalCell', template_dir='cells/CA3Cell_Qian/CA3.hoc')
     #tune_with_template('CA3PyramidalCell', template_dir='cells/CA3Cell_Qian/CA3.hoc')
 
     
+    '''
     argument_parser = argparse.ArgumentParser(description='Uses SBI to find optimal parameter sets for biologically realistic neuron simulations.')
     # argument_parser.add_argument('--modfiles', nargs='?', type=str, default=None, help='[optional] the directory containing the modfiles, otherwise assumed to be the same as template_dir')
     # argument_parser.add_argument('--workers', nargs= '?', type=int, default=1, help='number of workers to spawn')
@@ -122,7 +154,8 @@ if __name__ == '__main__':
     run = config_data['run']
     optimization_parameters = config_data['optimization_parameters']
 
-    tune_with_template(current_injections=optimization_parameters['current_injections'], 
+    
+    tune_with_template_summary(current_injections=optimization_parameters['current_injections'], 
                        low=optimization_parameters['lows'],
                        high=optimization_parameters['highs'],
                        parameter_list=optimization_parameters['parameters'],
@@ -143,5 +176,26 @@ if __name__ == '__main__':
                        workers=run['workers'],
                        display=args.g,
                        save_dir=args.save_dir)
+    
 
+    tune_with_template_cnn(current_injections=optimization_parameters['current_injections'], 
+                       low=optimization_parameters['lows'],
+                       high=optimization_parameters['highs'],
+                       parameter_list=optimization_parameters['parameters'],
+                       num_simulations=run['num_simulations'],
+                       num_rounds = run['num_rounds'],
+                       sim_run_time=run['tstop'],
+                       delay=run['delay'],
+                       inj_time=run['duration'],
+                       v_init=conditions['v_init'],
+                       template_name=manifest['template_name'],
+                       target_template_name=manifest['target_template_name'],
+                       target_template_dir=manifest['target_template_dir'],
+                       template_dir=manifest['template_dir'],
+                       modfiles_dir=manifest['modfiles_dir'],
+                       threshold_sample_size=run['threshold_sample_size'],
+                       workers=run['workers'],
+                       display=args.g,
+                       save_dir=args.save_dir)
+    '''
 
