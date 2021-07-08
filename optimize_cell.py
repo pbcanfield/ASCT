@@ -2,7 +2,6 @@ import os
 from neuron import h
 from numpy import nan_to_num
 import scipy as sp
-from scipy.stats.stats import mannwhitneyu
 from Cell import Cell
 from Optimizer import Optimizer
 from Tuner import CellTuner
