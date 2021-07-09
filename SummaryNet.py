@@ -33,14 +33,14 @@ class SummaryCNN(nn.Module):
         x = x.view(-1,1,96 ** 2)
 
         #Convolutions and pooling.
-        x = self.pool1(F.relu(self.conv1(x)))
-        x = self.pool2(F.relu(self.conv2(x)))
-        x = self.pool3(F.relu(self.conv3(x)))
-        x = self.pool4(F.relu(self.conv4(x)))
+        x = self.pool1(F.relu(self.conv1(x), inplace=False))
+        x = self.pool2(F.relu(self.conv2(x), inplace=False))
+        x = self.pool3(F.relu(self.conv3(x), inplace=False))
+        x = self.pool4(F.relu(self.conv4(x), inplace=False))
 
         #Reshape for passing into the fully connected layer.
         x = x.view(-1,125) # (batch size, in_features)
-        x = F.relu(self.fc(x))
+        x = F.relu(self.fc(x), inplace=False)
 
         #Concatinates the produced features (12 stats) with the original observation.
         #Not sure why this is useful.

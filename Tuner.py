@@ -1,6 +1,7 @@
 import scipy as sp
 from Optimizer import Optimizer
 from Cell import Cell
+from SummaryNet import SummaryCNN
 from neuron import h
 import itertools
 import os
@@ -33,7 +34,19 @@ class CellTuner:
         #Store the current injection list and the spike threshold.
         #Store if learn_stats is true or false.
         self.__current_injections = current_injections
-        self.__learn_stats = learn_stats
+
+        #Check if learn_stats is set to true, if it is then the summary funct and all args and kwargs
+        #will be ignored.
+        if learn_stats and (summary_funct != None or args != None or kwargs != None):
+            print('learn_stats is set to true, disregarding summary statistic function arguments.')
+        
+        self.__embedding_net = None
+        if learn_stats:
+            self.__embedding_net = SummaryCNN()
+            summary_funct = self.__embedding_net.forward
+            args = ()
+            kwargs = {}
+        
 
          #First lets try to compile our modfiles.
         if os.system('nrnivmodl %s' % modfiles_dir) == 0:
@@ -89,7 +102,7 @@ class CellTuner:
         for target_stat, current_injection in zip(self.__target_stats, self.__current_injections):
             self.__optimizer.set_target_statistics(target_stat)
             self.__optimizer.set_simulation_params(i_inj=current_injection)
-            self.__optimizer.run_inference(num_simulations=num_simulations, workers=inference_workers, num_rounds=num_rounds)
+            self.__optimizer.run_inference(num_simulations=num_simulations, workers=inference_workers, num_rounds=num_rounds, embedding_net=self.__embedding_net)
             self.__parameter_samples.append(self.__optimizer.get_samples(sample_threshold=sample_threshold))
             
 
