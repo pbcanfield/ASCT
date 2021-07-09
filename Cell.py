@@ -14,9 +14,12 @@ import torch
 #which can be run by sbi for simulation data.
 class Cell:
 
-    #This constructor takes a the HOC template directory and the template name.
-    #It then uses the already compiled modfiles for each mechanism.
-    def __init__(self, template_dir, template_name):
+    #Constructs a Cell object.
+    #Takes:
+    #   1) The HOC template directory.
+    #   2) The HOC object name for the given cell.
+    #   3) The summary statistics function.
+    def __init__(self, template_dir, template_name, summary_stats_funct):
         
         #Load the template directory.
         h.load_file(template_dir)
@@ -36,6 +39,7 @@ class Cell:
         self.__mem_potential.record(self.__cell.soma[0](0.5)._ref_v) #This line means that all cell templates must
                                                                      #have a soma array with at least one soma
                                                                      # element in it.
+        self.summary_funct = summary_stats_funct
 
     #Return the neuron cell onject.
     def get_cell(self):
@@ -43,11 +47,11 @@ class Cell:
 
     #Return the membrane potential neuron vector as a numpy array.
     def get_potential_as_numpy(self):
-        return self.__mem_potential.as_numpy()
+        return np.resize(self.__mem_potential.as_numpy(),96**2)
     
     #Return the time vector as a numpy array.
     def get_time_as_numpy(self):
-        return self.__time.as_numpy()
+        return np.resize(self.__time.as_numpy(),96**2)
 
     #Graph the membrane vs time graph based on whatever is in membrane voltage 
     #and time vectors.
@@ -87,85 +91,3 @@ class Cell:
         plt.axis('on')
         raw_tensor = torch.tensor(raw_data.flatten(), dtype=torch.get_default_dtype())
         return raw_tensor
-
-    #Important statistcs for an adapting cell
-    #Resting membrane potential.
-    #Average spike peak?
-    #Average trough value?
-    #Adaptation ratio: This is defined as a_r = (f_max - f_steadystate)/f_max
-    #                  where f_max is the maximum instantaneous frequency  (first spike probably) 
-    #                  f_steadystate is the steady state instaneous frequency (last spike probably)
-    #Adapation speed: Some sort of metric which captures how fast it adapts.
-    #Number of spikes. 
-    def calculate_adapting_statistics(self, sim_variables, spike_height_threshold=0, spike_adaptation_threshold=0.99, DEBUG=False):
-        
-        sim_run_time = sim_variables[0]
-        delay = sim_variables[1]
-        inj_time = sim_variables[2]
-        
-        trace = self.get_potential_as_numpy()
-        time = self.get_time_as_numpy()
-        
-        #Resting Membrane Potential.
-
-        #We need to calculate the resting membrane potential,
-        #to do this we need to find a part of the simmulation where it is at rest.
-        #preferably we get this from the end after the current injection, however if
-        #the current injection ends at the end of the simulation then we can take it from the
-        #beginning with some padding.
-        padding = 50
-        if sim_run_time == delay + inj_time:
-            start_injection = np.where(np.isclose(time, sim_run_time))[0][0]
-            start_point = np.where(np.isclose(time, sim_run_time - padding))[0][0]
-            resting = np.mean(trace[start_point:start_injection])
-        else:
-            end_injection = np.where(np.isclose(time,delay + inj_time))[0][0]
-            end_point = np.where(np.isclose(time,delay + inj_time + padding))[0][0]
-            resting = np.mean(trace[end_injection:end_point])
-        
-        #Average spike and trough voltage.
-        spike_times = np.asarray(find_peaks(trace,height=spike_height_threshold)[0])
-        
-        #Take care of the case where nothing spikes.
-        if len(spike_times) == 0:
-            return np.concatenate((resting, resting, resting, 0, 0, 0),axis=None) 
-
-        average_peak = np.mean(np.take(trace, spike_times))
-        average_trough = np.mean(np.take(trace, np.asarray(find_peaks(-trace,height=spike_height_threshold)[0])))
-
-        #Take care of the case where there is only one spike.
-        if len(spike_times) == 1:
-            return np.concatenate((resting, average_peak, average_trough, 0, 1, 1),axis=None) 
-
-        #Adaptation ratio        
-        f_max = 1.0 / (spike_times[1] - spike_times[0])
-        f_min = 1.0 / (spike_times[-1] - spike_times[-2])
-
-        adaptation_index = (f_max - f_min) / f_max
-
-        #Adaptation speed.
-        instantaneous_freq = 1.0 / np.diff(spike_times)
-        adaptation_speed = np.where(np.isclose(instantaneous_freq, f_min, spike_adaptation_threshold))[0][0]
-
-        #Number of spikes
-        spike_num = len(spike_times)    
-        
-        if DEBUG:
-            print('Calculated resting membrane potential: %f' % resting)
-            print('Average peak voltage: %f' % average_peak)
-            print('Average trough voltage: %f' % average_trough)
-            print('Adaptation ratio: %f' % adaptation_index)
-            print('Adaptation speed: %d' % adaptation_speed)
-            print('Number of spikes: %d' % spike_num)
-
-        return np.concatenate((resting, average_peak, average_trough, adaptation_index, adaptation_speed, spike_num), axis=None)
-
-
-    #This should be modified to return the summary function you want.
-    #def calculate_adapting_statistics(self, sim_variables, spike_height_threshold=0, spike_adaptation_threshold=0.99, DEBUG=False):
-
-    def summary_wrapper(self, learn_stats=False, *args, **kwargs):
-        if learn_stats:
-            return self.calculate_adapting_statistics(kwargs['sim_variables'], kwargs['spike_height_threshold'], kwargs['spike_adaptation_threshold'], kwargs['DEBUG'])
-        else:
-            return None #Fill this in.
