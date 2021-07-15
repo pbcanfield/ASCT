@@ -8,6 +8,7 @@ import argparse
 import json
 from scipy.signal import find_peaks
 import numpy as np
+from SummaryNet import SummaryCNN
 
 
 #Important statistcs for an adapting cell
@@ -20,8 +21,6 @@ import numpy as np
 #Adapation speed: Some sort of metric which captures how fast it adapts.
 #Number of spikes. 
 def calculate_adapting_statistics(cell,sim_variables=(), spike_height_threshold=0, spike_adaptation_threshold=0.99, DEBUG=False):
-    print(sim_variables)
-    
     sim_run_time = sim_variables[0]
     delay = sim_variables[1]
     inj_time = sim_variables[2]
@@ -99,36 +98,37 @@ def test_optimizer(template_name, template_dir='cells', modfiles_dir=None):
     #Now load in the standard run hoc.
     h.load_file('stdrun.hoc')
     
-    cell_obj = Cell(template_dir, template_name, calculate_adapting_statistics)
+
+    #Summary Stats Test
+    # cell_obj = Cell(template_dir, template_name, calculate_adapting_statistics)
+    
+    # optimizer = Optimizer(cell_obj, 
+    #                       None,                                                        #Parameter list, none for now.
+    #                       ([0.001, 0.001, 0.00001, 0.001,], [0.1, 0.1, 0.001, 0.1]),   #Parameter range.
+    #                       calculate_adapting_statistics,                               #Summary function.
+    #                       (600,50,500),                                                #args for summary function
+    #                       spike_adaptation_threshold=0.95,                             #kwargs for summary function
+    #                       spike_height_threshold=0)
+
+    # optimizer.set_simulation_params()
+    # optimizer.simulation_wrapper()
+
+    # print(cell_obj.generate_simulation_image(save_img_dir='generated1.png'))
+    # cell_obj.graph_potential(save_img_dir='original.png')
+
+    #CNN Test
+    cell_obj = Cell(template_dir, template_name, None)
     
     optimizer = Optimizer(cell_obj, 
-                          None,                                                        #Parameter list, none for now.
-                          ([0.001, 0.001, 0.00001, 0.001,], [0.1, 0.1, 0.001, 0.1]),   #Parameter range.
-                          calculate_adapting_statistics,                               #Summary function.
-                          (600,50,500),                                                #args for summary function
-                          spike_adaptation_threshold=0.95,                             #kwargs for summary function
-                          spike_height_threshold=0)
+                          ['gbar_natCA3', 'gbar_kdrCA3'], #Parameter list.
+                          ([0.001, 0.001], [0.1, 0.1]),   #Parameter range.
+                          None)   
+                        
 
-    optimizer.set_simulation_params()
-    optimizer.simulation_wrapper()
+    embedding_net = SummaryCNN()
 
-    print(cell_obj.generate_simulation_image(save_img_dir='generated1.png'))
-    cell_obj.graph_potential(save_img_dir='original.png')
-    
-    '''
-    target = cell_obj.calculate_adapting_statistics(sim_variables=optimizer.get_simulation_time_varibles(),DEBUG=True)
-    #cell_obj.graph_potential()
+    optimizer.run_inference_learned_stats(embedding_net, num_simulations=10)
 
-    optimizer.set_target_statistics(target)
-    optimizer.set_simulation_optimization_params(['gbar_natCA3', 'gbar_kdrCA3', 'gbar_napCA3', 'gbar_imCA3'])
-    optimizer.run_inference(num_simulations=100,workers=1) #Cant parallelize because of NEURON?
-    obtained = optimizer.get_sample()
-
-    print(obtained)
-    optimizer.simulation_wrapper(obtained)
-    cell_obj.calculate_adapting_statistics(sim_variables=optimizer.get_simulation_time_varibles(),DEBUG=True)
-    #cell_obj.graph_potential()
-    '''
 
 def tune_with_template(current_injections, low, high, 
                        parameter_list, num_simulations, num_rounds,
@@ -158,8 +158,8 @@ def tune_with_template(current_injections, low, high,
 
     tuner.set_simulation_params(sim_run_time=sim_run_time, delay=delay,inj_time=inj_time,v_init=v_init)
     tuner.calculate_target_stats_from_model(target_template_dir, target_template_name)
-    tuner.optimize_current_injections(num_simulations=num_simulations,inference_workers=workers, sample_threshold=threshold_sample_size, num_rounds=num_rounds)
 
+    tuner.optimize_current_injections(num_simulations=num_simulations,inference_workers=workers, sample_threshold=threshold_sample_size, num_rounds=num_rounds)
     tuner.find_best_parameter_set()
 
     #print('The optimizer found the following parameter set:')
@@ -167,7 +167,7 @@ def tune_with_template(current_injections, low, high,
 
     #print('The matching ratio is: %f (closer to 1 is better)' % tuner.get_matching_ratio())
 
-    #tuner.compare_found_solution_to_model(display,save_dir)
+    tuner.compare_found_solution_to_model(display,save_dir)
 
 def parse_config(config_directory):
     data = None
@@ -182,50 +182,50 @@ def parse_config(config_directory):
     return data
 
 if __name__ == '__main__':
-    #test_optimizer('CA3PyramidalCell', template_dir='cells/CA3Cell_Qian/CA3.hoc')
+    test_optimizer('CA3PyramidalCell', template_dir='cells/CA3Cell_Qian/CA3.hoc')
     #tune_with_template('CA3PyramidalCell', template_dir='cells/CA3Cell_Qian/CA3.hoc')
 
     
     
-    argument_parser = argparse.ArgumentParser(description='Uses SBI to find optimal parameter sets for biologically realistic neuron simulations.')
+    # argument_parser = argparse.ArgumentParser(description='Uses SBI to find optimal parameter sets for biologically realistic neuron simulations.')
 
 
-    argument_parser.add_argument('config_dir', type=str, help='the optimization config file directory')
-    argument_parser.add_argument('save_dir', nargs='?', type=str, default=None, help='[optional] the directory to save figures to')
-    argument_parser.add_argument('-g', default=False, action='store_true', help='displays graphics')
+    # argument_parser.add_argument('config_dir', type=str, help='the optimization config file directory')
+    # argument_parser.add_argument('save_dir', nargs='?', type=str, default=None, help='[optional] the directory to save figures to')
+    # argument_parser.add_argument('-g', default=False, action='store_true', help='displays graphics')
     
 
-    args = argument_parser.parse_args()
+    # args = argument_parser.parse_args()
 
-    config_data = parse_config(args.config_dir)
+    # config_data = parse_config(args.config_dir)
 
-    #Now lets extract the data.
-    manifest = config_data['manifest']
-    conditions = config_data['conditions']
-    run = config_data['run']
-    optimization_parameters = config_data['optimization_parameters']
+    # #Now lets extract the data.
+    # manifest = config_data['manifest']
+    # conditions = config_data['conditions']
+    # run = config_data['run']
+    # optimization_parameters = config_data['optimization_parameters']
 
     
-    tune_with_template(current_injections=optimization_parameters['current_injections'], 
-                       low=optimization_parameters['lows'],
-                       high=optimization_parameters['highs'],
-                       parameter_list=optimization_parameters['parameters'],
-                       num_simulations=run['num_simulations'],
-                       num_rounds = run['num_rounds'],
-                       sim_run_time=run['tstop'],
-                       delay=run['delay'],
-                       inj_time=run['duration'],
-                       v_init=conditions['v_init'],
-                       spike_height=run['spike_threshold'],
-                       spike_adaptation=run['spike_adaptation'],
-                       template_name=manifest['template_name'],
-                       target_template_name=manifest['target_template_name'],
-                       target_template_dir=manifest['target_template_dir'],
-                       template_dir=manifest['template_dir'],
-                       modfiles_dir=manifest['modfiles_dir'],
-                       threshold_sample_size=run['threshold_sample_size'],
-                       workers=run['workers'],
-                       display=args.g,
-                       save_dir=args.save_dir,
-                       learn_stats=manifest['learn_stats'])
+    # tune_with_template(current_injections=optimization_parameters['current_injections'], 
+    #                    low=optimization_parameters['lows'],
+    #                    high=optimization_parameters['highs'],
+    #                    parameter_list=optimization_parameters['parameters'],
+    #                    num_simulations=run['num_simulations'],
+    #                    num_rounds = run['num_rounds'],
+    #                    sim_run_time=run['tstop'],
+    #                    delay=run['delay'],
+    #                    inj_time=run['duration'],
+    #                    v_init=conditions['v_init'],
+    #                    spike_height=run['spike_threshold'],
+    #                    spike_adaptation=run['spike_adaptation'],
+    #                    template_name=manifest['template_name'],
+    #                    target_template_name=manifest['target_template_name'],
+    #                    target_template_dir=manifest['target_template_dir'],
+    #                    template_dir=manifest['template_dir'],
+    #                    modfiles_dir=manifest['modfiles_dir'],
+    #                    threshold_sample_size=run['threshold_sample_size'],
+    #                    workers=run['workers'],
+    #                    display=args.g,
+    #                    save_dir=args.save_dir,
+    #                    learn_stats=manifest['learn_stats'])
     

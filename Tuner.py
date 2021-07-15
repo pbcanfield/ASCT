@@ -103,6 +103,18 @@ class CellTuner:
             self.__sim_environ.set_simulation_params(sim_run_time=self.__sim_run_time, delay=self.__delay, inj_time=self.__inj_time, v_init=self.__v_init, i_inj=i_inj)
             self.__target_stats.append(self.__sim_environ.simulation_wrapper())
 
+    
+    # #This pre-simulates the data for SBI. Can be sped up here. 
+    # def pre_simulate_data(self, save_dir, num_rounds):
+    #     self.__parameter_samples = []
+
+    #     for target_stat, current_injection in zip(self.__target_stats, self.__current_injections):
+    #         self.__optimizer.set_target_statistics(target_stat)
+    #         self.__optimizer.set_simulation_params(i_inj=current_injection)
+    #         self.__optimizer.run_inference(num_simulations=num_simulations, workers=inference_workers, num_rounds=num_rounds)
+    #         self.__parameter_samples.append(self.__optimizer.get_samples(sample_threshold=sample_threshold))
+    
+    
     #Actually calculate the posterior distribution for each current injection.
     def optimize_current_injections(self, num_simulations = 500, num_rounds=1, inference_workers=1, sample_threshold=10):
         #This could be parallelized for speedups.
