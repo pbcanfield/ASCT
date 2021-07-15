@@ -47,14 +47,6 @@ class Optimizer():
         else:
             self.__prior = None
 
-        if embedding_net != None:
-            self.__stat_nn = posterior_nn(model='maf', embedding_net=embedding_net, hidden_features=12)
-            self.__inference = SNPE(prior=self.__prior, density_estimator=self.__stat_nn, show_progress_bars=True)
-        else:
-            self.__inference = SNPE(prior=self.__prior)
-
-        
-
     #This sets the simmulation parameters.
     def set_simulation_params(self, sim_run_time = 600, delay = 50, inj_time = 500, i_inj = 0.2, v_init = -75):
         self.__sim_run_time = sim_run_time
@@ -155,11 +147,32 @@ class Optimizer():
             return self.summary_funct(self.__cell,*self.summary_stat_args)
 
         if self.summary_stat_kwargs != {}:
-            return self.summary_funct(self.__cell,None, **self.summary_stat_kwargs)
+            return self.summary_funct(self.__cell,*(), **self.summary_stat_kwargs)
         
         #Otherwise pass in the
-        return self.summary_funct(torch.from_numpy(self.__cell.get_potential_as_numpy()).float().clone())
+        data = torch.from_numpy(self.__cell.get_potential_as_numpy()).float()
+        print(data.size())
+        return data
 
+    # #Could potentially be sped up.
+    # #This function generates some pre-simulated data based on the number of rounds of inference.
+    # #Takes three arguments:
+    # #   1) The number of samples to generate
+    # #   2) The directory to save the presimulated data to. If set to none then the data is not
+    # #      saved to a file but is stored internally in a __presimulated variable.
+    # def pre_simulate(self, num_samples = 1000, save_dir = None):
+    #     #Get stuff ready for sbi.
+    #     simulator, self.__prior = prepare_for_sbi(self.simulation_wrapper, self.__prior)
+
+        
+    #     theta, x = simulate_for_sbi(simulator, proposal, num_simulations=num_simulations,num_workers=workers)
+    #     density_estimator = inference.append_simulations(theta, x, proposal=proposal).train()
+    #     self.__posterior = inference.build_posterior(density_estimator, sample_with_mcmc = True)
+    #     proposal = self.__posterior.set_default_x(self.__observed_stats)
+
+
+
+    #This function builds simulation data ONLINE.
     #This is what uses SBI to infer the parameters with the above simulation wrapper.
     #This function takes three arguments:
     #   1) The number of simulations to run per round.
@@ -171,17 +184,32 @@ class Optimizer():
     #      distribution than just one big round.
     #   4) The CNN which is used to learn the summary stats, if this is set to None no embedding net
     #      exists and this step can be skipped.
-    def run_inference(self, num_simulations=1000, workers=1, num_rounds = 1, embedding_net = None):
+    def run_inference_multiround(self, num_simulations=1000, workers=1, num_rounds = 1):
         
         #Get stuff ready for sbi.
         simulator, self.__prior = prepare_for_sbi(self.simulation_wrapper, self.__prior)
-        
+        inference = SNPE(prior=self.__prior)
         
         proposal = self.__prior
 
         for _ in range(num_rounds):
             theta, x = simulate_for_sbi(simulator, proposal, num_simulations=num_simulations,num_workers=workers)
-            density_estimator = self.__inference.append_simulations(theta, x, proposal=proposal).train()
-            self.__posterior = self.__inference.build_posterior(density_estimator, sample_with_mcmc = True)
+            density_estimator = inference.append_simulations(theta, x, proposal=proposal).train()
+            self.__posterior = inference.build_posterior(density_estimator, sample_with_mcmc = True)
             proposal = self.__posterior.set_default_x(self.__observed_stats)
 
+    
+    def run_inference_learned_stats(self, embedding_net, workers = 1,  num_simulations=1000):
+        
+        #Get stuff ready for sbi.
+        simulator, self.__prior = prepare_for_sbi(self.simulation_wrapper, self.__prior)
+       
+        neural_posterior = utils.posterior_nn(model='maf', 
+                                              embedding_net=embedding_net,
+                                              hidden_features=12)
+                        
+        inference = SNPE(prior=self.__prior, density_estimator=neural_posterior)
+
+        theta, x = simulate_for_sbi(simulator, self.__prior, num_simulations=num_simulations,num_workers=workers)
+        density_estimator = inference.append_simulations(theta, x).train()
+        self.__posterior = inference.build_posterior(density_estimator, sample_with_mcmc = True)

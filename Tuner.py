@@ -43,11 +43,11 @@ class CellTuner:
         self.__embedding_net = None
         if learn_stats:
             self.__embedding_net = SummaryCNN()
-            summary_funct = self.__embedding_net.forward
+            summary_funct = self.run_forward_pass
+
             args = ()
             kwargs = {}
         
-
          #First lets try to compile our modfiles.
         if os.system('nrnivmodl %s' % modfiles_dir) == 0:
             print("Compiled Successfully.")
@@ -63,6 +63,15 @@ class CellTuner:
 
         self.__optimizer = Optimizer(self.__to_optimize, optimization_parameters, parameter_range, summary_funct, *args, **kwargs)
 
+    
+    def run_forward_pass(self, input):
+        out = self.__embedding_net(input)
+        return out
+
+    #This function trains the model based on pre-simulated data.
+    def train_summary_cnn(self):
+        return 0
+    
     #Sets the target statistics to be matched. This should be a list of target statistics
     #where each entry matches a given current injection level.
     def add_target_statistics(self, target_stats):
@@ -94,15 +103,27 @@ class CellTuner:
             self.__sim_environ.set_simulation_params(sim_run_time=self.__sim_run_time, delay=self.__delay, inj_time=self.__inj_time, v_init=self.__v_init, i_inj=i_inj)
             self.__target_stats.append(self.__sim_environ.simulation_wrapper())
 
+    
+    # #This pre-simulates the data for SBI. Can be sped up here. 
+    # def pre_simulate_data(self, save_dir, num_rounds):
+    #     self.__parameter_samples = []
+
+    #     for target_stat, current_injection in zip(self.__target_stats, self.__current_injections):
+    #         self.__optimizer.set_target_statistics(target_stat)
+    #         self.__optimizer.set_simulation_params(i_inj=current_injection)
+    #         self.__optimizer.run_inference(num_simulations=num_simulations, workers=inference_workers, num_rounds=num_rounds)
+    #         self.__parameter_samples.append(self.__optimizer.get_samples(sample_threshold=sample_threshold))
+    
+    
     #Actually calculate the posterior distribution for each current injection.
     def optimize_current_injections(self, num_simulations = 500, num_rounds=1, inference_workers=1, sample_threshold=10):
         #This could be parallelized for speedups.
         self.__parameter_samples = []
-        
+
         for target_stat, current_injection in zip(self.__target_stats, self.__current_injections):
             self.__optimizer.set_target_statistics(target_stat)
             self.__optimizer.set_simulation_params(i_inj=current_injection)
-            self.__optimizer.run_inference(num_simulations=num_simulations, workers=inference_workers, num_rounds=num_rounds, embedding_net=self.__embedding_net)
+            self.__optimizer.run_inference(num_simulations=num_simulations, workers=inference_workers, num_rounds=num_rounds)
             self.__parameter_samples.append(self.__optimizer.get_samples(sample_threshold=sample_threshold))
             
 
