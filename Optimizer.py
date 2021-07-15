@@ -47,14 +47,6 @@ class Optimizer():
         else:
             self.__prior = None
 
-        if embedding_net != None:
-            self.__stat_nn = posterior_nn(model='maf', embedding_net=embedding_net, hidden_features=12)
-            self.__inference = SNPE(prior=self.__prior, density_estimator=self.__stat_nn, show_progress_bars=True)
-        else:
-            self.__inference = SNPE(prior=self.__prior)
-
-        
-
     #This sets the simmulation parameters.
     def set_simulation_params(self, sim_run_time = 600, delay = 50, inj_time = 500, i_inj = 0.2, v_init = -75):
         self.__sim_run_time = sim_run_time
@@ -155,7 +147,7 @@ class Optimizer():
             return self.summary_funct(self.__cell,*self.summary_stat_args)
 
         if self.summary_stat_kwargs != {}:
-            return self.summary_funct(self.__cell,None, **self.summary_stat_kwargs)
+            return self.summary_funct(self.__cell,(), **self.summary_stat_kwargs)
         
         #Otherwise pass in the
         return self.summary_funct(torch.from_numpy(self.__cell.get_potential_as_numpy()).float().clone())
@@ -175,13 +167,13 @@ class Optimizer():
         
         #Get stuff ready for sbi.
         simulator, self.__prior = prepare_for_sbi(self.simulation_wrapper, self.__prior)
-        
+        inference = SNPE(prior=self.__prior)
         
         proposal = self.__prior
 
         for _ in range(num_rounds):
             theta, x = simulate_for_sbi(simulator, proposal, num_simulations=num_simulations,num_workers=workers)
-            density_estimator = self.__inference.append_simulations(theta, x, proposal=proposal).train()
-            self.__posterior = self.__inference.build_posterior(density_estimator, sample_with_mcmc = True)
+            density_estimator = inference.append_simulations(theta, x, proposal=proposal).train()
+            self.__posterior = inference.build_posterior(density_estimator, sample_with_mcmc = True)
             proposal = self.__posterior.set_default_x(self.__observed_stats)
 

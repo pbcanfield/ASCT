@@ -19,7 +19,9 @@ import numpy as np
 #                  f_steadystate is the steady state instaneous frequency (last spike probably)
 #Adapation speed: Some sort of metric which captures how fast it adapts.
 #Number of spikes. 
-def calculate_adapting_statistics(cell,sim_variables, spike_height_threshold=0, spike_adaptation_threshold=0.99, DEBUG=False):
+def calculate_adapting_statistics(cell,sim_variables=(), spike_height_threshold=0, spike_adaptation_threshold=0.99, DEBUG=False):
+    print(sim_variables)
+    
     sim_run_time = sim_variables[0]
     delay = sim_variables[1]
     inj_time = sim_variables[2]
@@ -160,10 +162,10 @@ def tune_with_template(current_injections, low, high,
 
     tuner.find_best_parameter_set()
 
-    print('The optimizer found the following parameter set:')
-    print(tuner.get_optimial_parameter_set())
+    #print('The optimizer found the following parameter set:')
+    #print(tuner.get_optimial_parameter_set())
 
-    print('The matching ratio is: %f (closer to 1 is better)' % tuner.get_matching_ratio())
+    #print('The matching ratio is: %f (closer to 1 is better)' % tuner.get_matching_ratio())
 
     #tuner.compare_found_solution_to_model(display,save_dir)
 
