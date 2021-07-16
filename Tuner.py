@@ -48,6 +48,10 @@ class CellTuner:
             args = ()
             kwargs = {}
         
+            #Create a flag which sets if the summary CNN has been trained 
+            #or not yet.
+            self.__trained_summary = False
+
          #First lets try to compile our modfiles.
         if os.system('nrnivmodl %s' % modfiles_dir) == 0:
             print("Compiled Successfully.")
@@ -67,10 +71,6 @@ class CellTuner:
     def run_forward_pass(self, input):
         out = self.__embedding_net(input)
         return out
-
-    #This function trains the model based on pre-simulated data.
-    def train_summary_cnn(self):
-        return 0
     
     #Sets the target statistics to be matched. This should be a list of target statistics
     #where each entry matches a given current injection level.
@@ -85,7 +85,21 @@ class CellTuner:
         self.__v_init = v_init
 
     #Calculate the target summary statistics based on a provided HOC model.
-    def calculate_target_stats_from_model(self, template_dir, template_name):    
+    #If CNN is activated and not yet trained, train it.
+    def calculate_target_stats_from_model(self, template_dir, template_name, num_simulations=500, inference_workers=1):    
+        
+        #Check if we are trying to learn the summary stats here. If so check
+        #if the CNN has been trained yet or not.
+        if self.__embedding_net != None and not self.__trained_summary:
+            for current_injection in self.__current_injections:
+                self.__optimizer.set_simulation_params(i_inj=current_injection)
+                self.__optimizer.run_inference_learned_stats(self.__embedding_net,inference_workers,num_simulations)
+            
+            self.__trained_summary = True
+
+
+
+        
         self.__target_cell = Cell(template_dir, template_name, self.__optimizer.summary_funct)
         
         #Create a temporary optimizer which is used to get the target
@@ -103,28 +117,51 @@ class CellTuner:
             self.__sim_environ.set_simulation_params(sim_run_time=self.__sim_run_time, delay=self.__delay, inj_time=self.__inj_time, v_init=self.__v_init, i_inj=i_inj)
             self.__target_stats.append(self.__sim_environ.simulation_wrapper())
 
+    #Wrapper function which automatically chooses which function to call based on
+    #set parameters.
+    def optimize_current_injections(self, num_simulations = 500, num_rounds=1, inference_workers=1 ,sample_threshold = 10):
+        if self.__embedding_net == None:
+            self.optimize_current_injections_summary(num_simulations=num_simulations, 
+                                                     num_rounds=num_rounds, 
+                                                     inference_workers=inference_workers, 
+                                                     sample_threshold=sample_threshold)
+        else:
+            self.optimize_current_injections_cnn(num_simulations=num_simulations, 
+                                                 inference_workers=inference_workers, 
+                                                 sample_threshold=sample_threshold)
     
-    # #This pre-simulates the data for SBI. Can be sped up here. 
-    # def pre_simulate_data(self, save_dir, num_rounds):
-    #     self.__parameter_samples = []
+    def optimize_current_injections_cnn(self, num_simulations = 500, inference_workers=1, sample_threshold = 10):        
+        #First check if the network has already been optimized. if not run that.
+        if not self.__trained_summary:
+            for current_injection in self.__current_injections:
+                self.__optimizer.set_simulation_params(i_inj=current_injection)
+                self.__optimizer.run_inference_learned_stats(self.__embedding_net,inference_workers,num_simulations)
+            self.__trained_summary = True
+        
+        #Now simply sample the posterior
+        
+        self.__parameter_samples = []
 
-    #     for target_stat, current_injection in zip(self.__target_stats, self.__current_injections):
-    #         self.__optimizer.set_target_statistics(target_stat)
-    #         self.__optimizer.set_simulation_params(i_inj=current_injection)
-    #         self.__optimizer.run_inference(num_simulations=num_simulations, workers=inference_workers, num_rounds=num_rounds)
-    #         self.__parameter_samples.append(self.__optimizer.get_samples(sample_threshold=sample_threshold))
-    
+        for index, target_stat in enumerate(self.__target_stats):
+            self.__optimizer.set_target_statistics(target_stat)
+            self.__parameter_samples.append(self.__optimizer.get_samples(index, sample_threshold=sample_threshold))
+
     
     #Actually calculate the posterior distribution for each current injection.
-    def optimize_current_injections(self, num_simulations = 500, num_rounds=1, inference_workers=1, sample_threshold=10):
+    #The summary stats function and this function are seperated because they 
+    #differ slightly in structure.
+
+
+
+    def optimize_current_injections_summary(self, num_simulations = 500, num_rounds=1, inference_workers=1, sample_threshold=10):
         #This could be parallelized for speedups.
         self.__parameter_samples = []
 
         for target_stat, current_injection in zip(self.__target_stats, self.__current_injections):
             self.__optimizer.set_target_statistics(target_stat)
             self.__optimizer.set_simulation_params(i_inj=current_injection)
-            self.__optimizer.run_inference(num_simulations=num_simulations, workers=inference_workers, num_rounds=num_rounds)
-            self.__parameter_samples.append(self.__optimizer.get_samples(sample_threshold=sample_threshold))
+            self.__optimizer.run_inference_multiround(num_simulations=num_simulations, workers=inference_workers, num_rounds=num_rounds)
+            self.__parameter_samples.append(self.__optimizer.get_samples(-1, sample_threshold=sample_threshold))
             
 
     #Find the best parameter set based on the calulated posterior distributions.

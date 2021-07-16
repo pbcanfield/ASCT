@@ -47,6 +47,8 @@ class Optimizer():
         else:
             self.__prior = None
 
+        self.__posterior = []
+
     #This sets the simmulation parameters.
     def set_simulation_params(self, sim_run_time = 600, delay = 50, inj_time = 500, i_inj = 0.2, v_init = -75):
         self.__sim_run_time = sim_run_time
@@ -54,8 +56,8 @@ class Optimizer():
         self.__inj_time = inj_time
         self.__i_inj = i_inj
         self.__v_init = v_init
-        self.__steps_per_ms = 96**2 / sim_run_time #NOTE: The 96**2 has to be fixed because of the CNN implemenation.
-                                                       #This fixes the number of data points to be 96^2.
+        self.__steps_per_ms = 32**2 / sim_run_time #NOTE: The 96**2 has to be fixed because of the CNN implemenation.
+                                                       #This fixes the number of data points to be 32^2.
 
 
     def set_simulation_optimization_params(self, param_list):
@@ -72,8 +74,8 @@ class Optimizer():
     def set_target_statistics(self, stats):
         self.__observed_stats = stats
 
-    def graph_performance(self, sample_threshold=1000):
-        samples = self.__posterior.sample((sample_threshold,), x=self.__observed_stats)
+    def graph_performance(self, posterior_id, sample_threshold=1000):
+        samples = self.__posterior[posterior_id].sample((sample_threshold,), x=self.__observed_stats)
         fig, axes = utils.pairplot(samples,
                         fig_size=(5,5),
                         points_offdiag={'markersize': 6},
@@ -82,11 +84,11 @@ class Optimizer():
         plt.tight_layout()
         plt.show()
 
-    def get_best_sample(self): 
-        return self.__posterior.sample((1,), x=self.__observed_stats).numpy()[0]
+    def get_best_sample(self, posterior_id): 
+        return self.__posterior[posterior_id].sample((1,), x=self.__observed_stats).numpy()[0]
 
-    def get_samples(self, sample_threshold):
-        return self.__posterior.sample((sample_threshold,), x=self.__observed_stats).numpy()
+    def get_samples(self, posterior_id, sample_threshold):
+        return self.__posterior[posterior_id].sample((sample_threshold,), x=self.__observed_stats).numpy()
 
     #This is the function which is called by SBI to actually generate the sample distribution.
     #This function takes in some args and kwargs depending on what the function is being
@@ -96,8 +98,8 @@ class Optimizer():
     #      to be set for this simulation. These parameters must appear 
     #      in order based on the internaly set cell_opti
 
-    def get_samples(self, sample_threshold):
-        return self.__posterior.sample((sample_threshold,), x=self.__observed_stats).numpy()
+    def get_samples(self, posterior_id, sample_threshold):
+        return self.__posterior[posterior_id].sample((sample_threshold,), x=self.__observed_stats).numpy()
 
     #This is the function which is called by SBI to actually generate the sample distribution.
     #This function takes in some args and kwargs depending on what the function is being set for all sections 
@@ -151,25 +153,7 @@ class Optimizer():
         
         #Otherwise pass in the
         data = torch.from_numpy(self.__cell.get_potential_as_numpy()).float()
-        print(data.size())
         return data
-
-    # #Could potentially be sped up.
-    # #This function generates some pre-simulated data based on the number of rounds of inference.
-    # #Takes three arguments:
-    # #   1) The number of samples to generate
-    # #   2) The directory to save the presimulated data to. If set to none then the data is not
-    # #      saved to a file but is stored internally in a __presimulated variable.
-    # def pre_simulate(self, num_samples = 1000, save_dir = None):
-    #     #Get stuff ready for sbi.
-    #     simulator, self.__prior = prepare_for_sbi(self.simulation_wrapper, self.__prior)
-
-        
-    #     theta, x = simulate_for_sbi(simulator, proposal, num_simulations=num_simulations,num_workers=workers)
-    #     density_estimator = inference.append_simulations(theta, x, proposal=proposal).train()
-    #     self.__posterior = inference.build_posterior(density_estimator, sample_with_mcmc = True)
-    #     proposal = self.__posterior.set_default_x(self.__observed_stats)
-
 
 
     #This function builds simulation data ONLINE.
@@ -195,8 +179,10 @@ class Optimizer():
         for _ in range(num_rounds):
             theta, x = simulate_for_sbi(simulator, proposal, num_simulations=num_simulations,num_workers=workers)
             density_estimator = inference.append_simulations(theta, x, proposal=proposal).train()
-            self.__posterior = inference.build_posterior(density_estimator, sample_with_mcmc = True)
-            proposal = self.__posterior.set_default_x(self.__observed_stats)
+            self.__posterior.append(inference.build_posterior(density_estimator, sample_with_mcmc = True))
+            proposal = self.__posterior[-1].set_default_x(self.__observed_stats)
+        
+        
 
     
     def run_inference_learned_stats(self, embedding_net, workers = 1,  num_simulations=1000):
@@ -206,10 +192,14 @@ class Optimizer():
        
         neural_posterior = utils.posterior_nn(model='maf', 
                                               embedding_net=embedding_net,
-                                              hidden_features=12)
+                                              hidden_features=10,
+                                              num_transforms=2)
                         
         inference = SNPE(prior=self.__prior, density_estimator=neural_posterior)
-
         theta, x = simulate_for_sbi(simulator, self.__prior, num_simulations=num_simulations,num_workers=workers)
-        density_estimator = inference.append_simulations(theta, x).train()
-        self.__posterior = inference.build_posterior(density_estimator, sample_with_mcmc = True)
+        density_estimator = inference.append_simulations(theta, x)
+        density_estimator.train(show_train_summary=True)
+        self.__posterior.append(inference.build_posterior())
+
+    def clear_posterior(self):
+        self.__posterior = []

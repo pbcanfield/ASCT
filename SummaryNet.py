@@ -1,50 +1,29 @@
 import torch.nn as nn 
 import torch.nn.functional as F 
 
+#Information to calculate 1D CNN output size and maxpool output size.
+#https://towardsdatascience.com/pytorch-basics-how-to-train-your-neural-net-intro-to-cnn-26a14c2ea29
+#Maxpool layer uses same resource but kernel size and stride are set to be the same
+#unless otherwise specified. Padding set to 0 by default.
 class SummaryCNN(nn.Module):
-    def __init__(self):
+    def __init__(self): 
         super().__init__()
-        # 96x96 -> 96x96
-        self.conv1 = nn.Conv1d(in_channels=1, out_channels=5, kernel_size=3, padding=1, padding_mode='replicate')
-        # 96x96 -> 48x48
-        self.pool1 = nn.MaxPool1d(kernel_size=2)
-        # 48x48 -> 48x48
-        self.conv2 = nn.Conv1d(in_channels=5, out_channels=5, kernel_size=3, padding=1, padding_mode='replicate')
-        # 48x48 -> 24x24
-        self.pool2 = nn.MaxPool1d(kernel_size=2)
-        # 24x24 -> 24x24
-        self.conv3 = nn.Conv1d(in_channels=5, out_channels=5, kernel_size=3, padding=1, padding_mode='replicate')
-        # 24x24 -> 12x12
-        self.pool3 = nn.MaxPool1d(kernel_size=2)
-        # 12x12 -> 10x10
-        self.conv4 = nn.Conv1d(in_channels=5, out_channels=5, kernel_size=3)
-        # 10x10 -> 5x5
-        self.pool4 = nn.MaxPool1d(kernel_size=2)
-        # Fully connected layer taking as input the 8 flattened output arrays from the maxpooling layer
-        self.fc = nn.Linear(in_features=125, out_features=12) # 5*5*5=125
+        # 1D convolutional layer
+        #1024->1024 
+        self.conv1 = nn.Conv1d(in_channels=1, out_channels=1, kernel_size=4, padding=2,stride=1)
+        # Maxpool layer that reduces 1024-> 128
+        self.pool = nn.MaxPool1d(kernel_size=8, stride=8)
+        # Fully connected layer taking as input the 6 flattened output arrays from the maxpooling layer
+        self.fc = nn.Linear(in_features=128, out_features=8) 
 
-    def forward(self,x):
-        #Gets a 96x96 input.
+    def forward(self, x):
         #Reshape input to the right size. Inlcluding:
         #1) batch size,
         #2) Number of input channels.
         #3) Size of input.
         # -1 means to retain the first dimensions size (batch size).
-        x = x.view(-1,1,96 ** 2)
-
-        print(x.size)
-
-        #Convolutions and pooling.
-        x = self.pool1(F.relu(self.conv1(x)))
-        x = self.pool2(F.relu(self.conv2(x)))
-        x = self.pool3(F.relu(self.conv3(x)))
-        x = self.pool4(F.relu(self.conv4(x)))
-
-        #Reshape for passing into the fully connected layer.
-        x = x.view(-1,125) # (batch size, in_features)
+        x = x.view(-1, 1, 1024)
+        x = self.pool(F.relu(self.conv1(x)))
+        x = x.view(-1, 128)
         x = F.relu(self.fc(x))
-
-        #Concatinates the produced features (12 stats) with the original observation.
-        #Not sure why this is useful.
-        #x = torch.cat((x,x0),dim=1)
         return x

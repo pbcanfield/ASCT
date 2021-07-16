@@ -47,11 +47,11 @@ class Cell:
 
     #Return the membrane potential neuron vector as a numpy array.
     def get_potential_as_numpy(self):
-        return np.resize(self.__mem_potential.as_numpy(),96**2)
+        return np.resize(self.__mem_potential.as_numpy(),32**2)
     
     #Return the time vector as a numpy array.
     def get_time_as_numpy(self):
-        return np.resize(self.__time.as_numpy(),96**2)
+        return np.resize(self.__time.as_numpy(),32**2)
 
     #Graph the membrane vs time graph based on whatever is in membrane voltage 
     #and time vectors.
@@ -69,7 +69,7 @@ class Cell:
 
     
     #Generates an image of given dimensionality for the embedded CNN.
-    def generate_simulation_image(self, save_img_dir=None, dimensionality=128 , dpi=1):
+    def generate_simulation_image(self, save_img_dir=None, dimensionality=32 , dpi=1):
         trace = self.get_potential_as_numpy()
         time = self.get_time_as_numpy()
         
