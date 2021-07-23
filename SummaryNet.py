@@ -14,7 +14,7 @@ class SummaryCNN(nn.Module):
         # Maxpool layer that reduces 1024-> 128
         self.pool = nn.MaxPool1d(kernel_size=8, stride=8)
         # Fully connected layer taking as input the 6 flattened output arrays from the maxpooling layer
-        self.fc = nn.Linear(in_features=128, out_features=8) 
+        self.fc = nn.Linear(in_features=128, out_features=12) 
 
     def forward(self, x):
         #Reshape input to the right size. Inlcluding:

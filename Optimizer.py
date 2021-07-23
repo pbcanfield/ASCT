@@ -168,7 +168,7 @@ class Optimizer():
     #      distribution than just one big round.
     #   4) The CNN which is used to learn the summary stats, if this is set to None no embedding net
     #      exists and this step can be skipped.
-    def run_inference_multiround(self, num_simulations=1000, workers=1, num_rounds = 1):
+    def run_inference_multiround(self, num_simulations=1000, num_rounds = 1, workers=1):
         
         #Get stuff ready for sbi.
         simulator, self.__prior = prepare_for_sbi(self.simulation_wrapper, self.__prior)
@@ -185,8 +185,13 @@ class Optimizer():
         
 
     
-    def run_inference_learned_stats(self, embedding_net, workers = 1,  num_simulations=1000):
+    def run_inference_learned_stats(self, embedding_net, num_simulations=1000, num_rounds=1, workers=1):
         
+        #Check that num_rounds >= 1.
+        num_rounds -= 1
+        if num_rounds < 0:
+            print('Please set the number of rounds to at least one.')
+
         #Get stuff ready for sbi.
         simulator, self.__prior = prepare_for_sbi(self.simulation_wrapper, self.__prior)
        
@@ -194,12 +199,25 @@ class Optimizer():
                                               embedding_net=embedding_net,
                                               hidden_features=10,
                                               num_transforms=2)
-                        
         inference = SNPE(prior=self.__prior, density_estimator=neural_posterior)
+
+        proposal = self.__prior
+
+        #Do the first round so we train the weights for the CNN.
         theta, x = simulate_for_sbi(simulator, self.__prior, num_simulations=num_simulations,num_workers=workers)
         density_estimator = inference.append_simulations(theta, x)
         density_estimator.train(show_train_summary=True)
-        self.__posterior.append(inference.build_posterior())
+        proposal = inference.build_posterior()
+        self.__posterior.append(proposal)
+
+        
+
+        for _ in range(num_rounds):        
+            theta, x = simulate_for_sbi(simulator, proposal, num_simulations=num_simulations,num_workers=workers)
+            density_estimator = inference.append_simulations(theta, x)
+            density_estimator.train(show_train_summary=True)
+            self.__posterior.append(inference.build_posterior())
+            proposal = self.__posterior[-1].set_default_x(self.__observed_stats)
 
     def clear_posterior(self):
         self.__posterior = []

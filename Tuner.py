@@ -127,15 +127,16 @@ class CellTuner:
                                                      sample_threshold=sample_threshold)
         else:
             self.optimize_current_injections_cnn(num_simulations=num_simulations, 
-                                                 inference_workers=inference_workers, 
+                                                 inference_workers=inference_workers,
+                                                 num_rounds=num_rounds, 
                                                  sample_threshold=sample_threshold)
     
-    def optimize_current_injections_cnn(self, num_simulations = 500, inference_workers=1, sample_threshold = 10):        
+    def optimize_current_injections_cnn(self, num_simulations = 500, num_rounds = 1, inference_workers=1, sample_threshold = 10):        
         #First check if the network has already been optimized. if not run that.
         if not self.__trained_summary:
             for current_injection in self.__current_injections:
                 self.__optimizer.set_simulation_params(i_inj=current_injection)
-                self.__optimizer.run_inference_learned_stats(self.__embedding_net,inference_workers,num_simulations)
+                self.__optimizer.run_inference_learned_stats(self.__embedding_net,num_simulations, num_rounds, inference_workers)
             self.__trained_summary = True
         
         #Now simply sample the posterior
@@ -145,6 +146,8 @@ class CellTuner:
         for index, target_stat in enumerate(self.__target_stats):
             self.__optimizer.set_target_statistics(target_stat)
             self.__parameter_samples.append(self.__optimizer.get_samples(index, sample_threshold=sample_threshold))
+        
+        self.__optimizer.clear_posterior()
 
     
     #Actually calculate the posterior distribution for each current injection.
@@ -162,6 +165,7 @@ class CellTuner:
             self.__optimizer.set_simulation_params(i_inj=current_injection)
             self.__optimizer.run_inference_multiround(num_simulations=num_simulations, workers=inference_workers, num_rounds=num_rounds)
             self.__parameter_samples.append(self.__optimizer.get_samples(-1, sample_threshold=sample_threshold))
+            self.__optimizer.clear_posterior()
             
 
     #Find the best parameter set based on the calulated posterior distributions.
