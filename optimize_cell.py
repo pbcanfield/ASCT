@@ -154,7 +154,9 @@ def tune_with_template(current_injections, low, high,
                       spike_adaptation_threshold=spike_adaptation)
 
     tuner.set_simulation_params(sim_run_time=sim_run_time, delay=delay,inj_time=inj_time,v_init=v_init)
-    tuner.calculate_target_stats_from_model(target_template_dir, target_template_name, num_simulations=num_simulations)
+    
+    
+    tuner.calculate_target_stats_from_model(target_template_dir, target_template_name)
 
     
     tuner.optimize_current_injections(num_simulations=num_simulations,inference_workers=workers, sample_threshold=threshold_sample_size, num_rounds=num_rounds)

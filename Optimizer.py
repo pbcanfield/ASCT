@@ -4,7 +4,7 @@ from sbi import utils as utils
 from sbi.inference import SNPE, prepare_for_sbi, simulate_for_sbi
 import matplotlib.pyplot as plt
 from sbi.utils.get_nn_models import posterior_nn
-
+import numpy as np
 torch.autograd.set_detect_anomaly(True)
 
 #The job of the optimizer is to take some summary statistics and return a set of parameters which 
@@ -21,7 +21,7 @@ class Optimizer():
     #   4) Two optional kwargs both used for the adaptation summary stats function:
     #       1) The spike adaptation threshold.
     #       2) The spike height threshold.
-    def __init__(self, cell, parameter_list, parameter_range, summary_funct, embedding_net = None, *args, **kwargs):
+    def __init__(self, cell, parameter_list, parameter_range, summary_funct, *args, **kwargs):
         #Set some parameters.
         self.__cell = cell #The cell object.
         self.summary_funct = summary_funct
@@ -63,6 +63,9 @@ class Optimizer():
     def set_simulation_optimization_params(self, param_list):
         self.__cell_optimization_params = param_list
 
+
+    def set_current_injection_list(self, current_injections):
+        self.__current_injections = current_injections
 
     def get_simulation_optimization_params(self):
         return self.__cell_optimization_params
@@ -106,6 +109,8 @@ class Optimizer():
     #      in the cell.
     #
     #      The args list is mainly used by SBI to run the simulations.
+    #      When simulation wrapper is called by SBI a list of parameters is passed
+    #      in corresponding to the previously specified parameters list.
     #
     #If there are any kwargs:
     #   - Each kwarg corresponds to a parameter to be set. For instance,
@@ -151,8 +156,17 @@ class Optimizer():
         if self.summary_stat_kwargs != {}:
             return self.summary_funct(self.__cell,*(), **self.summary_stat_kwargs)
         
-        #Otherwise pass in the
+        
         data = torch.from_numpy(self.__cell.get_potential_as_numpy()).float()
+        return data
+
+    def multi_channel_wrapper(self, *args, **kwargs):
+        data = torch.empty((len(self.__current_injections),1024))
+        
+        for index, current_injection in enumerate(self.__current_injections):
+            self.set_simulation_params(i_inj=current_injection)
+            data[index] = self.simulation_wrapper(*args, **kwargs)
+        
         return data
 
 
@@ -185,38 +199,30 @@ class Optimizer():
         
 
     
-    def run_inference_learned_stats(self, embedding_net, num_simulations=1000, num_rounds=1, workers=1):
-        if num_rounds < 1:
-            print('Please set the number of rounds to at least one.')
+    def run_inference_learned_stats(self, embedding_net, target_environ, num_simulations=1000, num_rounds=1, workers=1):        
+        #Get stuff ready for sbi.
+        self.__simulator, self.__prior = prepare_for_sbi(self.multi_channel_wrapper, self.__prior)
+        
+        neural_posterior = utils.posterior_nn(model='maf', 
+                                                embedding_net=embedding_net,
+                                                hidden_features=10,
+                                                num_transforms=2)
+        self.__inference = SNPE(prior=self.__prior, density_estimator=neural_posterior)
 
-        if num_rounds == 1:
-            #Get stuff ready for sbi.
-            self.__simulator, self.__prior = prepare_for_sbi(self.simulation_wrapper, self.__prior)
-            
-            neural_posterior = utils.posterior_nn(model='maf', 
-                                                  embedding_net=embedding_net,
-                                                  hidden_features=10,
-                                                  num_transforms=2)
-            self.__inference = SNPE(prior=self.__prior, density_estimator=neural_posterior)
+        proposal = self.__prior
 
-            self.__proposal = self.__prior
+        self.__observed_stats = target_environ.multi_channel_wrapper().flatten()
 
+        for _ in range(num_rounds):
             #Do the first round so we train the weights for the CNN.
             theta, x = simulate_for_sbi(self.__simulator, self.__prior, num_simulations=num_simulations,num_workers=workers)
             density_estimator = self.__inference.append_simulations(theta, x)
             density_estimator.train(show_train_summary=True)
-            self.__proposal = self.__inference.build_posterior()
-            self.__posterior.append(self.__proposal)
+            proposal = self.__inference.build_posterior()
+            self.__posterior.append(proposal)
 
-            return
-        
-        self.__proposal = self.__posterior[-1].set_default_x(self.__observed_stats)
-        for _ in range(num_rounds):        
-            theta, x = simulate_for_sbi(self.__simulator, self.__proposal, num_simulations=num_simulations,num_workers=workers)
-            density_estimator = self.__inference.append_simulations(theta, x)
-            density_estimator.train(show_train_summary=True)
-            self.__posterior.append(self.__inference.build_posterior())
-            self.__proposal = self.__posterior[-1].set_default_x(self.__observed_stats)
+            #Set defualt x.
+            proposal = self.__posterior[-1].set_default_x(self.__observed_stats)
 
     def clear_posterior(self):
         self.__posterior = []
