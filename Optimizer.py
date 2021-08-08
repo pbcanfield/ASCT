@@ -186,38 +186,37 @@ class Optimizer():
 
     
     def run_inference_learned_stats(self, embedding_net, num_simulations=1000, num_rounds=1, workers=1):
-        
-        #Check that num_rounds >= 1.
-        num_rounds -= 1
-        if num_rounds < 0:
+        if num_rounds < 1:
             print('Please set the number of rounds to at least one.')
 
-        #Get stuff ready for sbi.
-        simulator, self.__prior = prepare_for_sbi(self.simulation_wrapper, self.__prior)
-       
-        neural_posterior = utils.posterior_nn(model='maf', 
-                                              embedding_net=embedding_net,
-                                              hidden_features=10,
-                                              num_transforms=2)
-        inference = SNPE(prior=self.__prior, density_estimator=neural_posterior)
+        if num_rounds == 1:
+            #Get stuff ready for sbi.
+            self.__simulator, self.__prior = prepare_for_sbi(self.simulation_wrapper, self.__prior)
+            
+            neural_posterior = utils.posterior_nn(model='maf', 
+                                                  embedding_net=embedding_net,
+                                                  hidden_features=10,
+                                                  num_transforms=2)
+            self.__inference = SNPE(prior=self.__prior, density_estimator=neural_posterior)
 
-        proposal = self.__prior
+            self.__proposal = self.__prior
 
-        #Do the first round so we train the weights for the CNN.
-        theta, x = simulate_for_sbi(simulator, self.__prior, num_simulations=num_simulations,num_workers=workers)
-        density_estimator = inference.append_simulations(theta, x)
-        density_estimator.train(show_train_summary=True)
-        proposal = inference.build_posterior()
-        self.__posterior.append(proposal)
-
-        
-
-        for _ in range(num_rounds):        
-            theta, x = simulate_for_sbi(simulator, proposal, num_simulations=num_simulations,num_workers=workers)
-            density_estimator = inference.append_simulations(theta, x)
+            #Do the first round so we train the weights for the CNN.
+            theta, x = simulate_for_sbi(self.__simulator, self.__prior, num_simulations=num_simulations,num_workers=workers)
+            density_estimator = self.__inference.append_simulations(theta, x)
             density_estimator.train(show_train_summary=True)
-            self.__posterior.append(inference.build_posterior())
-            proposal = self.__posterior[-1].set_default_x(self.__observed_stats)
+            self.__proposal = self.__inference.build_posterior()
+            self.__posterior.append(self.__proposal)
+
+            return
+        
+        self.__proposal = self.__posterior[-1].set_default_x(self.__observed_stats)
+        for _ in range(num_rounds):        
+            theta, x = simulate_for_sbi(self.__simulator, self.__proposal, num_simulations=num_simulations,num_workers=workers)
+            density_estimator = self.__inference.append_simulations(theta, x)
+            density_estimator.train(show_train_summary=True)
+            self.__posterior.append(self.__inference.build_posterior())
+            self.__proposal = self.__posterior[-1].set_default_x(self.__observed_stats)
 
     def clear_posterior(self):
         self.__posterior = []
