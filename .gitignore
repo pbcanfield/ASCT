@@ -5,3 +5,4 @@ x86_64/
 nap_km_results/
 *.log
 *.png
+templates/
