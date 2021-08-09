@@ -5,7 +5,7 @@
         "template_dir": "cells/CA3Cell_Qian/CA3.hoc",
         "target_template_dir": "cells/CA3Cell_Qian/CA3.hoc",
         "modfiles_dir": "cells/CA3Cell_Qian/modfiles",
-        "learn_stats": true
+        "learn_stats": false
       },
       "run": {
         "tstop": 400,

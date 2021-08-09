@@ -192,8 +192,9 @@ class Optimizer():
 
         for _ in range(num_rounds):
             theta, x = simulate_for_sbi(simulator, proposal, num_simulations=num_simulations,num_workers=workers)
-            density_estimator = inference.append_simulations(theta, x, proposal=proposal).train()
-            self.__posterior.append(inference.build_posterior(density_estimator, sample_with_mcmc = True))
+            density_estimator = inference.append_simulations(theta, x, proposal=proposal)
+            density_estimator.train(show_train_summary=True)
+            self.__posterior.append(inference.build_posterior())
             proposal = self.__posterior[-1].set_default_x(self.__observed_stats)
         
         
