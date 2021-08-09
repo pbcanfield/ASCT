@@ -1,3 +1,4 @@
+from matplotlib import axes
 import scipy as sp
 from Optimizer import Optimizer
 from Cell import Cell
@@ -8,6 +9,9 @@ import os
 from scipy.stats.stats import pearsonr 
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
+from scipy.signal import find_peaks
+import math
 
 
 #This class uses the Cell and Optimizer classes to
@@ -66,7 +70,6 @@ class CellTuner:
 
         self.__parameter_samples = []
 
-    
     def run_forward_pass(self, input):
         out = self.__embedding_net(input)
         return out
@@ -109,18 +112,18 @@ class CellTuner:
     #Wrapper function which automatically chooses which function to call based on
     #set parameters.
     def optimize_current_injections(self, num_simulations = 500, num_rounds=1, inference_workers=1 ,sample_threshold = 10):
+        self.__top_n = sample_threshold
+        
         if self.__embedding_net == None:
             self.optimize_current_injections_summary(num_simulations=num_simulations, 
                                                      num_rounds=num_rounds, 
-                                                     inference_workers=inference_workers, 
-                                                     sample_threshold=sample_threshold)
+                                                     inference_workers=inference_workers)
         else:
             self.optimize_current_injections_cnn(num_simulations=num_simulations, 
                                                  inference_workers=inference_workers,
-                                                 num_rounds=num_rounds, 
-                                                 sample_threshold=sample_threshold)
+                                                 num_rounds=num_rounds)
     
-    def optimize_current_injections_cnn(self, num_simulations = 500, num_rounds = 1, inference_workers=1, sample_threshold = 10):        
+    def optimize_current_injections_cnn(self, num_simulations = 500, num_rounds = 1, inference_workers=1):        
         
         #Run inference by passing in the current injections in as independent channels.
         
@@ -128,19 +131,17 @@ class CellTuner:
         # self.__optimizer.set_simulation_params(i_inj=current_injection)
         self.__optimizer.set_current_injection_list(self.__current_injections)
         self.__optimizer.run_inference_learned_stats(self.__embedding_net, self.__sim_environ, num_simulations=num_simulations, num_rounds=num_rounds, workers=inference_workers)
-        self.__parameter_samples.append(self.__optimizer.get_samples(-1, sample_threshold=sample_threshold))
+        self.__parameter_samples.append(self.__optimizer.get_samples(-1, sample_threshold=self.__top_n))
         # self.__optimizer.clear_posterior()
 
-    def optimize_current_injections_summary(self, num_simulations = 500, num_rounds=1, inference_workers=1, sample_threshold=10):
+    def optimize_current_injections_summary(self, num_simulations = 500, num_rounds=1, inference_workers=1):
         #This could be parallelized for speedups.
         for target_stat, current_injection in zip(self.__target_stats, self.__current_injections):
             self.__optimizer.set_target_statistics(target_stat)
             self.__optimizer.set_simulation_params(i_inj=current_injection)
             self.__optimizer.run_inference_multiround(num_simulations=num_simulations, workers=inference_workers, num_rounds=num_rounds)
-            self.__parameter_samples.append(self.__optimizer.get_samples(-1, sample_threshold=sample_threshold))
+            self.__parameter_samples.append(self.__optimizer.get_samples(-1, sample_threshold=self.__top_n))
             
-            
-
     #Find the best parameter set based on the calulated posterior distributions.
     #This is done by getting the top 'x' solutions from each posterior distribution
     #and finding the closest match in each set of parameters.
@@ -151,7 +152,7 @@ class CellTuner:
     #i.e. all parameter sets from out of the top 'x' are treated equally when in reality the
     #first ones are really the best solutions, this could be taken into account in a better
     #function
-    def find_best_parameter_set(self, SHOW_BEST_SET=False):
+    def find_best_parameter_sets(self, SHOW_BEST_SET=False):
         #What we need to do is find the parameter sets that are the most similar within our threshold.
         #First generate a list of all possible parameter perumutations.
         all_permulations = list(itertools.product(*self.__parameter_samples))
@@ -171,31 +172,35 @@ class CellTuner:
                 correlation_sums[index] += pearsonr(a,b)[0]
                 num_combinations += 1
 
+        self.__found_parameters = []
 
-        #get the parameter set with the highest total score.
-        closest_match = max(correlation_sums)
-        best_set = all_permulations[correlation_sums.index(closest_match)]
+        for _ in range(self.__top_n):
+            #get the parameter set with the highest total score.
+            closest_match = max(correlation_sums)
+            closest_match_index = correlation_sums.index(closest_match)
+            best_set = all_permulations[closest_match_index]
+            del correlation_sums[closest_match_index]
 
-        self.__final_parameter_matching_ratio = closest_match / num_combinations if num_combinations != 0 else 1
+            self.__final_parameter_matching_ratio = closest_match / num_combinations if num_combinations != 0 else 1
 
-        if SHOW_BEST_SET:
-            print('Best parameter set found.')
-            print(best_set)
-            print(self.__final_parameter_matching_ratio)
+            if SHOW_BEST_SET:
+                print('Best parameter set found.')
+                print(best_set)
+                print(self.__final_parameter_matching_ratio)
 
-        num_parameters = len(best_set[0])
-        #Return the average of each value in all parameter sets.
-        final = np.zeros(num_parameters)
+            num_parameters = len(best_set[0])
+            #Return the average of each value in all parameter sets.
+            final = np.zeros(num_parameters)
 
-        for index in range(num_parameters):
-            for p_set in best_set:
-                final[index] += p_set[index]
-            final[index] /= len(best_set)
+            for index in range(num_parameters):
+                for p_set in best_set:
+                    final[index] += p_set[index]
+                final[index] /= len(best_set)
 
-        final = list(final)
-        self.__found_parameters = final
+            final = list(final)
+            self.__found_parameters.append(final)
 
-        return final
+        return final[0]
 
     #Compare the found solution to the model using the target cell.
     #Takes 2 parameters:
@@ -203,8 +208,60 @@ class CellTuner:
     #      found parameter set overlayed on the target cell.
     #   2) The directory the above image should be saved to. None means dont
     #      save the image.
-    def compare_found_solution_to_model(self, display=False, save_dir=None):
+    def compare_found_solution_to_model(self, top_n=1, display=False, save_dir=None):
         
+        #Find the target voltage traces.
+        target_responses = []
+        for i_inj in self.__current_injections:
+            self.__sim_environ.set_simulation_params(sim_run_time=self.__sim_run_time, delay=self.__delay, inj_time=self.__inj_time, v_init=self.__v_init, i_inj=i_inj)
+            self.__sim_environ.simulation_wrapper()
+            target_responses.append(np.copy(self.__target_cell.get_potential_as_numpy()))
+        
+        #Get the time vector.
+        time = self.__target_cell.get_time_as_numpy()
+
+        #create a gid of subplots to display the results. the grid is NxN where
+        #n = ceil(sqrt(n))
+        n_plots = math.ceil(math.sqrt(top_n))
+        fig = plt.figure(figsize=(10,10))
+        outer = gridspec.GridSpec(n_plots,n_plots)
+
+        for i in range(top_n):
+            #Now get the real cell with our current injections.
+            found_responses = []
+            for i_inj in self.__current_injections:
+                self.__optimizer.set_simulation_params(sim_run_time=self.__sim_run_time, delay=self.__delay, inj_time=self.__inj_time, v_init=self.__v_init, i_inj=i_inj)
+                self.__optimizer.simulation_wrapper(self.__found_parameters[i])
+                found_responses.append(np.copy(self.__to_optimize.get_potential_as_numpy()))
+            
+            #Now plot everything.
+            current_injection_length = len(self.__current_injections)
+            inner = gridspec.GridSpecFromSubplotSpec(current_injection_length, 1, subplot_spec=outer[i])
+            if current_injection_length > 1:
+                for index in range(current_injection_length):
+                    ax = plt.Subplot(fig,inner[index])
+                    ax.plot(time, target_responses[index], label='Target')
+                    ax.plot(time, found_responses[index], label='Found')
+                    fig.add_subplot(ax)
+            else:
+                ax = plt.Subplot(fig,inner[0])
+                ax.plot(time, target_responses[0], label='Target')
+                ax.plot(time, found_responses[0], label='Found')
+                fig.add_subplot(ax)
+
+        handles, labels = plt.gca().get_legend_handles_labels()
+        fig.legend(handles, labels, loc='upper right')
+        fig.tight_layout()
+
+        if display:  
+            fig.show()
+        
+        if save_dir != None:
+            fig.savefig(os.path.join(save_dir, 'Model_Comparison.png'),bbox_inches='tight')
+
+
+    def generate_found_FI_curve(self, display=False, save_dir=None):
+
         #Find the target voltage traces.
         target_responses = []
         for i_inj in self.__current_injections:
@@ -223,33 +280,77 @@ class CellTuner:
         #Get the time vector.
         time = self.__target_cell.get_time_as_numpy()
 
-        #Now plot everything.
-        current_injection_length = len(self.__current_injections)
-        fig, axs = plt.subplots(current_injection_length)
+
+        #Create two graphs of both transient and average FI.
+
+
+        # #Resting Membrane Potential.
+
+        # #We need to calculate the resting membrane potential,
+        # #to do this we need to find a part of the simmulation where it is at rest.
+        # #preferably we get this from the end after the current injection, however if
+        # #the current injection ends at the end of the simulation then we can take it from the
+        # #beginning with some padding.
+        # padding = 50
+        # if sim_run_time == delay + inj_time:
+        #     start_injection = np.where(np.isclose(time, sim_run_time))[0][0]
+        #     start_point = np.where(np.isclose(time, sim_run_time - padding))[0][0]
+        #     resting = np.mean(trace[start_point:start_injection])
+        # else:
+        #     end_injection = np.where(np.isclose(time,delay + inj_time,0.99))[0][0]
+        #     end_point = len(time) - 1
+        #     resting = np.mean(trace[end_injection:end_point])
         
-        if current_injection_length > 1:
-            for index, ax in enumerate(axs):
-                ax.plot(time, target_responses[index], label='Target')
-                ax.plot(time, found_responses[index], label='Found')
-                ax.legend()
-        else:
-            axs.plot(time, target_responses[0], label='Target')
-            axs.plot(time, found_responses[0], label='Found')
-            axs.legend()
-
-
-        fig.tight_layout()
-
-        if display:  
-            plt.show()
+        # #Average spike and trough voltage.
+        # spike_times = np.asarray(find_peaks(trace,height=spike_height_threshold)[0])
         
-        if save_dir != None:
-            plt.savefig(os.path.join(save_dir, 'Model_Comparison.png'))
+        # #Take care of the case where nothing spikes.
+        # if len(spike_times) == 0:
+        #     return np.concatenate((resting, resting, resting, 0, 0, 0),axis=None) 
 
-    #Return a dictionary containing the parameter names as keys and the found parmeter as the values.
-    def get_optimial_parameter_set(self):
-        return dict(zip(self.__optimizer.get_simulation_optimization_params(), self.__found_parameters))
+        # average_peak = np.mean(np.take(trace, spike_times))
+        # average_trough = np.mean(np.take(trace, np.asarray(find_peaks(-trace,height=spike_height_threshold)[0])))
 
-    #Return the best found matching ratio from the find_best_parameter_set function.
-    def get_matching_ratio(self):
-        return self.__final_parameter_matching_ratio
+        # #Take care of the case where there is only one spike.
+        # if len(spike_times) == 1:
+        #     return np.concatenate((resting, average_peak, average_trough, 0, 1, 1),axis=None) 
+
+        # #Adaptation ratio        
+        # f_max = 1.0 / (spike_times[1] - spike_times[0])
+        # f_min = 1.0 / (spike_times[-1] - spike_times[-2])
+
+        # adaptation_index = (f_max - f_min) / f_max
+
+        # #Adaptation speed.
+        # instantaneous_freq = 1.0 / np.diff(spike_times)
+        # adaptation_speed = np.where(np.isclose(instantaneous_freq, f_min, spike_adaptation_threshold))[0][0]
+
+        # #Number of spikes
+        # spike_num = len(spike_times)    
+        
+        # if DEBUG:
+        #     print('Calculated resting membrane potential: %f' % resting)
+        #     print('Average peak voltage: %f' % average_peak)
+        #     print('Average trough voltage: %f' % average_trough)
+        #     print('Adaptation ratio: %f' % adaptation_index)
+        #     print('Adaptation speed: %d' % adaptation_speed)
+        #     print('Number of spikes: %d' % spike_num)
+
+
+        # fig.tight_layout()
+
+        # if display:  
+        #     plt.show()
+        
+        # if save_dir != None:
+        #     plt.savefig(os.path.join(save_dir, 'Model_Comparison.png'))
+
+    #Return a list of dictionaries containing the parameter names as keys and the found parmeter as the values
+    #for the top n values.
+    def get_optimial_parameter_sets(self, top_n):
+        
+        p_list = []
+        for index in range(top_n):
+            p_list.append(dict(zip(self.__optimizer.get_simulation_optimization_params(), self.__found_parameters[index])))
+        
+        return p_list

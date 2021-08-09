@@ -1,0 +1,75 @@
+Creating x86_64 directory for .o files.
+
+/home/pbczgf/sbi_tuner
+cells/CA3Cell_Qian/modfiles/Gfluct_new_exc.mod cells/CA3Cell_Qian/modfiles/Gfluct_new_inh.mod cells/CA3Cell_Qian/modfiles/imCA3.mod cells/CA3Cell_Qian/modfiles/izh.mod cells/CA3Cell_Qian/modfiles/kdrCA3.mod cells/CA3Cell_Qian/modfiles/leakCA3.mod cells/CA3Cell_Qian/modfiles/napCA3.mod cells/CA3Cell_Qian/modfiles/natCA3.mod
+Gfluct_new_exc.mod Gfluct_new_inh.mod imCA3.mod izh.mod kdrCA3.mod leakCA3.mod napCA3.mod natCA3.mod
+"/usr/local/x86_64/bin/nocmodl" Gfluct_new_exc
+"/usr/local/x86_64/bin/nocmodl" Gfluct_new_inh
+"/usr/local/x86_64/bin/nocmodl" imCA3
+"/usr/local/x86_64/bin/nocmodl" izh
+"/usr/local/share/nrn/libtool" --tag=CC --mode=compile mpicc -DHAVE_CONFIG_H  -I. -I.. -I"/usr/local/include/nrn" -I"/usr/local/x86_64/lib"      -g -O2 -c -o Gfluct_new_exc.lo Gfluct_new_exc.c
+"/usr/local/share/nrn/libtool" --tag=CC --mode=compile mpicc -DHAVE_CONFIG_H  -I. -I.. -I"/usr/local/include/nrn" -I"/usr/local/x86_64/lib"      -g -O2 -c -o imCA3.lo imCA3.c
+"/usr/local/share/nrn/libtool" --tag=CC --mode=compile mpicc -DHAVE_CONFIG_H  -I. -I.. -I"/usr/local/include/nrn" -I"/usr/local/x86_64/lib"      -g -O2 -c -o izh.lo izh.c
+"/usr/local/share/nrn/libtool" --tag=CC --mode=compile mpicc -DHAVE_CONFIG_H  -I. -I.. -I"/usr/local/include/nrn" -I"/usr/local/x86_64/lib"      -g -O2 -c -o Gfluct_new_inh.lo Gfluct_new_inh.c
+libtool: compile:  mpicc -DHAVE_CONFIG_H -I. -I.. -I/usr/local/include/nrn -I/usr/local/x86_64/lib -g -O2 -c Gfluct_new_inh.c  -fPIC -DPIC -o .libs/Gfluct_new_inh.o
+libtool: compile:  mpicc -DHAVE_CONFIG_H -I. -I.. -I/usr/local/include/nrn -I/usr/local/x86_64/lib -g -O2 -c imCA3.c  -fPIC -DPIC -o .libs/imCA3.o
+libtool: compile:  mpicc -DHAVE_CONFIG_H -I. -I.. -I/usr/local/include/nrn -I/usr/local/x86_64/lib -g -O2 -c izh.c  -fPIC -DPIC -o .libs/izh.o
+libtool: compile:  mpicc -DHAVE_CONFIG_H -I. -I.. -I/usr/local/include/nrn -I/usr/local/x86_64/lib -g -O2 -c Gfluct_new_exc.c  -fPIC -DPIC -o .libs/Gfluct_new_exc.o
+"/usr/local/x86_64/bin/nocmodl" kdrCA3
+"/usr/local/share/nrn/libtool" --tag=CC --mode=compile mpicc -DHAVE_CONFIG_H  -I. -I.. -I"/usr/local/include/nrn" -I"/usr/local/x86_64/lib"      -g -O2 -c -o kdrCA3.lo kdrCA3.c
+"/usr/local/x86_64/bin/nocmodl" leakCA3
+"/usr/local/share/nrn/libtool" --tag=CC --mode=compile mpicc -DHAVE_CONFIG_H  -I. -I.. -I"/usr/local/include/nrn" -I"/usr/local/x86_64/lib"      -g -O2 -c -o leakCA3.lo leakCA3.c
+"/usr/local/x86_64/bin/nocmodl" napCA3
+"/usr/local/share/nrn/libtool" --tag=CC --mode=compile mpicc -DHAVE_CONFIG_H  -I. -I.. -I"/usr/local/include/nrn" -I"/usr/local/x86_64/lib"      -g -O2 -c -o napCA3.lo napCA3.c
+"/usr/local/x86_64/bin/nocmodl" natCA3
+"/usr/local/share/nrn/libtool" --tag=CC --mode=compile mpicc -DHAVE_CONFIG_H  -I. -I.. -I"/usr/local/include/nrn" -I"/usr/local/x86_64/lib"      -g -O2 -c -o natCA3.lo natCA3.c
+libtool: compile:  mpicc -DHAVE_CONFIG_H -I. -I.. -I/usr/local/include/nrn -I/usr/local/x86_64/lib -g -O2 -c kdrCA3.c  -fPIC -DPIC -o .libs/kdrCA3.o
+libtool: compile:  mpicc -DHAVE_CONFIG_H -I. -I.. -I/usr/local/include/nrn -I/usr/local/x86_64/lib -g -O2 -c leakCA3.c  -fPIC -DPIC -o .libs/leakCA3.o
+libtool: compile:  mpicc -DHAVE_CONFIG_H -I. -I.. -I/usr/local/include/nrn -I/usr/local/x86_64/lib -g -O2 -c napCA3.c  -fPIC -DPIC -o .libs/napCA3.o
+libtool: compile:  mpicc -DHAVE_CONFIG_H -I. -I.. -I/usr/local/include/nrn -I/usr/local/x86_64/lib -g -O2 -c natCA3.c  -fPIC -DPIC -o .libs/natCA3.o
+"/usr/local/share/nrn/libtool" --tag=CC --mode=compile mpicc -DHAVE_CONFIG_H  -I. -I.. -I"/usr/local/include/nrn" -I"/usr/local/x86_64/lib"      -g -O2 -c -o mod_func.lo mod_func.c
+libtool: compile:  mpicc -DHAVE_CONFIG_H -I. -I.. -I/usr/local/include/nrn -I/usr/local/x86_64/lib -g -O2 -c mod_func.c  -fPIC -DPIC -o .libs/mod_func.o
+"/usr/local/share/nrn/libtool" --tag=CC --mode=link mpicc -module  -g -O2    -o libnrnmech.la -rpath "/usr/local/x86_64/lib"  Gfluct_new_exc.lo Gfluct_new_inh.lo imCA3.lo izh.lo kdrCA3.lo leakCA3.lo napCA3.lo natCA3.lo mod_func.lo  -L"/usr/local/x86_64/lib" -lnrnoc -loc -lmemacs -lnrnmpi -lscopmath -lsparse13 -lreadline -lncurses   -L"/usr/local/x86_64/lib" -lnrniv -livoc -lneuron_gnu -lmeschach -lsundials       -lm -ldl
+libtool: link: mpicc -shared  -fPIC -DPIC  .libs/Gfluct_new_exc.o .libs/Gfluct_new_inh.o .libs/imCA3.o .libs/izh.o .libs/kdrCA3.o .libs/leakCA3.o .libs/napCA3.o .libs/natCA3.o .libs/mod_func.o   -Wl,-rpath -Wl,/usr/local/x86_64/lib -Wl,-rpath -Wl,/usr/local/x86_64/lib -L/usr/local/x86_64/lib /usr/local/x86_64/lib/libnrnoc.so /usr/local/x86_64/lib/liboc.so -lX11 /usr/local/x86_64/lib/libmemacs.so /usr/local/x86_64/lib/libnrnmpi.so /usr/local/x86_64/lib/libscopmath.so /usr/local/x86_64/lib/libsparse13.so -lreadline -lncurses /usr/local/x86_64/lib/libnrniv.so /usr/local/x86_64/lib/libivoc.so /usr/local/x86_64/lib/libneuron_gnu.so /usr/local/x86_64/lib/libmeschach.so /usr/local/x86_64/lib/libsundials.so -lm -ldl  -g -O2   -pthread -Wl,-soname -Wl,libnrnmech.so.0 -o .libs/libnrnmech.so.0.0.0
+libtool: link: (cd ".libs" && rm -f "libnrnmech.so.0" && ln -s "libnrnmech.so.0.0.0" "libnrnmech.so.0")
+libtool: link: (cd ".libs" && rm -f "libnrnmech.so" && ln -s "libnrnmech.so.0.0.0" "libnrnmech.so")
+libtool: link: ( cd ".libs" && rm -f "libnrnmech.la" && ln -s "../libnrnmech.la" "libnrnmech.la" )
+Successfully created x86_64/special
+Compiled Successfully.
+Creating x86_64 directory for .o files.
+
+/home/pbczgf/sbi_tuner
+cells/CA3Cell_Qian/modfiles/Gfluct_new_exc.mod cells/CA3Cell_Qian/modfiles/Gfluct_new_inh.mod cells/CA3Cell_Qian/modfiles/imCA3.mod cells/CA3Cell_Qian/modfiles/izh.mod cells/CA3Cell_Qian/modfiles/kdrCA3.mod cells/CA3Cell_Qian/modfiles/leakCA3.mod cells/CA3Cell_Qian/modfiles/napCA3.mod cells/CA3Cell_Qian/modfiles/natCA3.mod
+Gfluct_new_exc.mod Gfluct_new_inh.mod imCA3.mod izh.mod kdrCA3.mod leakCA3.mod napCA3.mod natCA3.mod
+"/usr/local/x86_64/bin/nocmodl" Gfluct_new_exc
+"/usr/local/x86_64/bin/nocmodl" Gfluct_new_inh
+"/usr/local/x86_64/bin/nocmodl" imCA3
+"/usr/local/x86_64/bin/nocmodl" izh
+"/usr/local/share/nrn/libtool" --tag=CC --mode=compile mpicc -DHAVE_CONFIG_H  -I. -I.. -I"/usr/local/include/nrn" -I"/usr/local/x86_64/lib"      -g -O2 -c -o imCA3.lo imCA3.c
+"/usr/local/share/nrn/libtool" --tag=CC --mode=compile mpicc -DHAVE_CONFIG_H  -I. -I.. -I"/usr/local/include/nrn" -I"/usr/local/x86_64/lib"      -g -O2 -c -o Gfluct_new_exc.lo Gfluct_new_exc.c
+"/usr/local/share/nrn/libtool" --tag=CC --mode=compile mpicc -DHAVE_CONFIG_H  -I. -I.. -I"/usr/local/include/nrn" -I"/usr/local/x86_64/lib"      -g -O2 -c -o izh.lo izh.c
+"/usr/local/share/nrn/libtool" --tag=CC --mode=compile mpicc -DHAVE_CONFIG_H  -I. -I.. -I"/usr/local/include/nrn" -I"/usr/local/x86_64/lib"      -g -O2 -c -o Gfluct_new_inh.lo Gfluct_new_inh.c
+libtool: compile:  mpicc -DHAVE_CONFIG_H -I. -I.. -I/usr/local/include/nrn -I/usr/local/x86_64/lib -g -O2 -c izh.c  -fPIC -DPIC -o .libs/izh.o
+libtool: compile:  mpicc -DHAVE_CONFIG_H -I. -I.. -I/usr/local/include/nrn -I/usr/local/x86_64/lib -g -O2 -c imCA3.c  -fPIC -DPIC -o .libs/imCA3.o
+libtool: compile:  mpicc -DHAVE_CONFIG_H -I. -I.. -I/usr/local/include/nrn -I/usr/local/x86_64/lib -g -O2 -c Gfluct_new_inh.c  -fPIC -DPIC -o .libs/Gfluct_new_inh.o
+libtool: compile:  mpicc -DHAVE_CONFIG_H -I. -I.. -I/usr/local/include/nrn -I/usr/local/x86_64/lib -g -O2 -c Gfluct_new_exc.c  -fPIC -DPIC -o .libs/Gfluct_new_exc.o
+"/usr/local/x86_64/bin/nocmodl" kdrCA3
+"/usr/local/x86_64/bin/nocmodl" leakCA3
+"/usr/local/share/nrn/libtool" --tag=CC --mode=compile mpicc -DHAVE_CONFIG_H  -I. -I.. -I"/usr/local/include/nrn" -I"/usr/local/x86_64/lib"      -g -O2 -c -o kdrCA3.lo kdrCA3.c
+"/usr/local/share/nrn/libtool" --tag=CC --mode=compile mpicc -DHAVE_CONFIG_H  -I. -I.. -I"/usr/local/include/nrn" -I"/usr/local/x86_64/lib"      -g -O2 -c -o leakCA3.lo leakCA3.c
+"/usr/local/x86_64/bin/nocmodl" napCA3
+"/usr/local/share/nrn/libtool" --tag=CC --mode=compile mpicc -DHAVE_CONFIG_H  -I. -I.. -I"/usr/local/include/nrn" -I"/usr/local/x86_64/lib"      -g -O2 -c -o napCA3.lo napCA3.c
+libtool: compile:  mpicc -DHAVE_CONFIG_H -I. -I.. -I/usr/local/include/nrn -I/usr/local/x86_64/lib -g -O2 -c leakCA3.c  -fPIC -DPIC -o .libs/leakCA3.o
+"/usr/local/x86_64/bin/nocmodl" natCA3
+"/usr/local/share/nrn/libtool" --tag=CC --mode=compile mpicc -DHAVE_CONFIG_H  -I. -I.. -I"/usr/local/include/nrn" -I"/usr/local/x86_64/lib"      -g -O2 -c -o natCA3.lo natCA3.c
+libtool: compile:  mpicc -DHAVE_CONFIG_H -I. -I.. -I/usr/local/include/nrn -I/usr/local/x86_64/lib -g -O2 -c kdrCA3.c  -fPIC -DPIC -o .libs/kdrCA3.o
+libtool: compile:  mpicc -DHAVE_CONFIG_H -I. -I.. -I/usr/local/include/nrn -I/usr/local/x86_64/lib -g -O2 -c napCA3.c  -fPIC -DPIC -o .libs/napCA3.o
+libtool: compile:  mpicc -DHAVE_CONFIG_H -I. -I.. -I/usr/local/include/nrn -I/usr/local/x86_64/lib -g -O2 -c natCA3.c  -fPIC -DPIC -o .libs/natCA3.o
+"/usr/local/share/nrn/libtool" --tag=CC --mode=compile mpicc -DHAVE_CONFIG_H  -I. -I.. -I"/usr/local/include/nrn" -I"/usr/local/x86_64/lib"      -g -O2 -c -o mod_func.lo mod_func.c
+libtool: compile:  mpicc -DHAVE_CONFIG_H -I. -I.. -I/usr/local/include/nrn -I/usr/local/x86_64/lib -g -O2 -c mod_func.c  -fPIC -DPIC -o .libs/mod_func.o
+"/usr/local/share/nrn/libtool" --tag=CC --mode=link mpicc -module  -g -O2    -o libnrnmech.la -rpath "/usr/local/x86_64/lib"  Gfluct_new_exc.lo Gfluct_new_inh.lo imCA3.lo izh.lo kdrCA3.lo leakCA3.lo napCA3.lo natCA3.lo mod_func.lo  -L"/usr/local/x86_64/lib" -lnrnoc -loc -lmemacs -lnrnmpi -lscopmath -lsparse13 -lreadline -lncurses   -L"/usr/local/x86_64/lib" -lnrniv -livoc -lneuron_gnu -lmeschach -lsundials       -lm -ldl
+libtool: link: mpicc -shared  -fPIC -DPIC  .libs/Gfluct_new_exc.o .libs/Gfluct_new_inh.o .libs/imCA3.o .libs/izh.o .libs/kdrCA3.o .libs/leakCA3.o .libs/napCA3.o .libs/natCA3.o .libs/mod_func.o   -Wl,-rpath -Wl,/usr/local/x86_64/lib -Wl,-rpath -Wl,/usr/local/x86_64/lib -L/usr/local/x86_64/lib /usr/local/x86_64/lib/libnrnoc.so /usr/local/x86_64/lib/liboc.so -lX11 /usr/local/x86_64/lib/libmemacs.so /usr/local/x86_64/lib/libnrnmpi.so /usr/local/x86_64/lib/libscopmath.so /usr/local/x86_64/lib/libsparse13.so -lreadline -lncurses /usr/local/x86_64/lib/libnrniv.so /usr/local/x86_64/lib/libivoc.so /usr/local/x86_64/lib/libneuron_gnu.so /usr/local/x86_64/lib/libmeschach.so /usr/local/x86_64/lib/libsundials.so -lm -ldl  -g -O2   -pthread -Wl,-soname -Wl,libnrnmech.so.0 -o .libs/libnrnmech.so.0.0.0
+libtool: link: (cd ".libs" && rm -f "libnrnmech.so.0" && ln -s "libnrnmech.so.0.0.0" "libnrnmech.so.0")
+libtool: link: (cd ".libs" && rm -f "libnrnmech.so" && ln -s "libnrnmech.so.0.0.0" "libnrnmech.so")
+libtool: link: ( cd ".libs" && rm -f "libnrnmech.la" && ln -s "../libnrnmech.la" "libnrnmech.la" )
+Successfully created x86_64/special

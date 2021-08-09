@@ -1,6 +1,7 @@
 import os
 from neuron import h
 import scipy as sp
+from torch.nn.modules.module import T
 from Cell import Cell
 from Optimizer import Optimizer
 from Tuner import CellTuner
@@ -127,9 +128,8 @@ def test_optimizer(template_name, template_dir='cells', modfiles_dir=None):
     embedding_net = SummaryCNN()
     optimizer.run_inference_learned_stats(embedding_net, num_simulations=1000)
 
-
 def tune_with_template(current_injections, low, high, 
-                       parameter_list, num_simulations, num_rounds,
+                       parameter_list, num_simulations, num_rounds, result_threshold,
                        sim_run_time, delay, inj_time, v_init, spike_height, spike_adaptation,
                        template_name, target_template_name,
                        target_template_dir, template_dir, modfiles_dir,
@@ -160,14 +160,14 @@ def tune_with_template(current_injections, low, high,
 
     
     tuner.optimize_current_injections(num_simulations=num_simulations,inference_workers=workers, sample_threshold=threshold_sample_size, num_rounds=num_rounds)
-    tuner.find_best_parameter_set()
+    tuner.find_best_parameter_sets()
 
     print('The optimizer found the following parameter set:')
-    print(tuner.get_optimial_parameter_set())
+    print(tuner.get_optimial_parameter_sets(result_threshold))
 
     #print('The matching ratio is: %f (closer to 1 is better)' % tuner.get_matching_ratio())
 
-    tuner.compare_found_solution_to_model(display,save_dir)
+    tuner.compare_found_solution_to_model(result_threshold,display,save_dir)
 
 def parse_config(config_directory):
     data = None
@@ -193,7 +193,7 @@ if __name__ == '__main__':
     argument_parser.add_argument('config_dir', type=str, help='the optimization config file directory')
     argument_parser.add_argument('save_dir', nargs='?', type=str, default=None, help='[optional] the directory to save figures to')
     argument_parser.add_argument('-g', default=False, action='store_true', help='displays graphics')
-    
+    argument_parser.add_argument('-n', default=1, type=int, help='the number of found parameters to show (must be less than the threshold sample size in the optimization config file)')
 
     args = argument_parser.parse_args()
 
@@ -227,5 +227,6 @@ if __name__ == '__main__':
                        workers=run['workers'],
                        display=args.g,
                        save_dir=args.save_dir,
+                       result_threshold=args.n,
                        learn_stats=manifest['learn_stats'])
     

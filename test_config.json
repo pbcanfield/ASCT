@@ -5,7 +5,7 @@
         "template_dir": "cells/CA3Cell_Qian/CA3.hoc",
         "target_template_dir": "cells/CA3Cell_Qian/CA3.hoc",
         "modfiles_dir": "cells/CA3Cell_Qian/modfiles",
-        "learn_stats": false
+        "learn_stats": true
       },
       "run": {
         "tstop": 400,
@@ -13,9 +13,9 @@
         "spike_adaptation": 0.95,
         "delay": 100,
         "duration": 200,
-        "num_simulations": 1000,
-        "num_rounds": 3,
-        "threshold_sample_size": 5,
+        "num_simulations": 10,
+        "num_rounds": 1,
+        "threshold_sample_size": 10,
         "workers": 1
       },
       "conditions": {
