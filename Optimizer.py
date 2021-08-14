@@ -59,10 +59,8 @@ class Optimizer():
         self.__steps_per_ms = 32**2 / sim_run_time #NOTE: The 96**2 has to be fixed because of the CNN implemenation.
                                                        #This fixes the number of data points to be 32^2.
 
-
     def set_simulation_optimization_params(self, param_list):
         self.__cell_optimization_params = param_list
-
 
     def set_current_injection_list(self, current_injections):
         self.__current_injections = current_injections
@@ -169,7 +167,6 @@ class Optimizer():
         
         return data
 
-
     #This function builds simulation data ONLINE.
     #This is what uses SBI to infer the parameters with the above simulation wrapper.
     #This function takes three arguments:
@@ -198,8 +195,6 @@ class Optimizer():
             proposal = self.__posterior[-1].set_default_x(self.__observed_stats)
         
         
-
-    
     def run_inference_learned_stats(self, embedding_net, target_environ, num_simulations=1000, num_rounds=1, workers=1):        
         #Get stuff ready for sbi.
         self.__simulator, self.__prior = prepare_for_sbi(self.multi_channel_wrapper, self.__prior)

@@ -6,7 +6,7 @@ import torch.nn.functional as F
 #Maxpool layer uses same resource but kernel size and stride are set to be the same
 #unless otherwise specified. Padding set to 0 by default.
 class SummaryCNN(nn.Module):
-    def __init__(self, current_injections=1): 
+    def __init__(self, current_injections=1, summary_features=8): 
         super().__init__()
 
         self.__current_injections = current_injections
@@ -17,7 +17,7 @@ class SummaryCNN(nn.Module):
         # Maxpool layer that reduces 1024-> 128
         self.pool = nn.MaxPool1d(kernel_size=8, stride=8)
         # Fully connected layer taking as input the 6 flattened output arrays from the maxpooling layer
-        self.fc = nn.Linear(in_features=128, out_features=12) 
+        self.fc = nn.Linear(in_features=128, out_features=summary_features) 
 
     def forward(self, x):
         #Reshape input to the right size. Inlcluding:

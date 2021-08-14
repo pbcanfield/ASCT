@@ -6,3 +6,4 @@ nap_km_results/
 *.log
 *.png
 templates/
+results/*

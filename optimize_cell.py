@@ -129,11 +129,11 @@ def test_optimizer(template_name, template_dir='cells', modfiles_dir=None):
     optimizer.run_inference_learned_stats(embedding_net, num_simulations=1000)
 
 def tune_with_template(current_injections, low, high, 
-                       parameter_list, num_simulations, num_rounds, result_threshold,
+                       parameter_list, num_simulations, num_rounds, result_threshold, features,
                        sim_run_time, delay, inj_time, v_init, spike_height, spike_adaptation,
                        template_name, target_template_name,
-                       target_template_dir, template_dir, modfiles_dir,
-                       threshold_sample_size, workers, display,save_dir, learn_stats):
+                       target_template_dir, template_dir, modfiles_dir, ground_truth, 
+                       threshold_sample_size, workers, display,save_dir, architecture):
 
     
     if os.path.exists('x86_64'):
@@ -147,27 +147,29 @@ def tune_with_template(current_injections, low, high,
                       template_name, 
                       parameter_list, 
                       (low, high), 
-                      learn_stats=learn_stats,
+                      architecture=architecture,
                       summary_funct=calculate_adapting_statistics,
+                      features=features,
                       sim_variables=(600,50,500), 
                       spike_height_threshold=spike_height,
                       spike_adaptation_threshold=spike_adaptation)
 
     tuner.set_simulation_params(sim_run_time=sim_run_time, delay=delay,inj_time=inj_time,v_init=v_init)
-    
-    
     tuner.calculate_target_stats_from_model(target_template_dir, target_template_name)
-
-    
     tuner.optimize_current_injections(num_simulations=num_simulations,inference_workers=workers, sample_threshold=threshold_sample_size, num_rounds=num_rounds)
     tuner.find_best_parameter_sets()
-
+    
     print('The optimizer found the following parameter set:')
     print(tuner.get_optimial_parameter_sets(result_threshold))
 
+    print('Relative Percent Error from ground truth:')
+    print(tuner.compare_found_parameters_to_ground_truth(ground_truth,result_threshold))
+
     #print('The matching ratio is: %f (closer to 1 is better)' % tuner.get_matching_ratio())
 
-    tuner.compare_found_solution_to_model(result_threshold,display,save_dir)
+    tuner.generate_target_from_model()
+    tuner.compare_found_solution_to_target(result_threshold,display,save_dir)
+    
 
 def parse_config(config_directory):
     data = None
@@ -212,6 +214,7 @@ if __name__ == '__main__':
                        parameter_list=optimization_parameters['parameters'],
                        num_simulations=run['num_simulations'],
                        num_rounds = run['num_rounds'],
+                       features = run['features'],
                        sim_run_time=run['tstop'],
                        delay=run['delay'],
                        inj_time=run['duration'],
@@ -223,10 +226,11 @@ if __name__ == '__main__':
                        target_template_dir=manifest['target_template_dir'],
                        template_dir=manifest['template_dir'],
                        modfiles_dir=manifest['modfiles_dir'],
+                       ground_truth=optimization_parameters['ground_truth'],
                        threshold_sample_size=run['threshold_sample_size'],
                        workers=run['workers'],
                        display=args.g,
                        save_dir=args.save_dir,
                        result_threshold=args.n,
-                       learn_stats=manifest['learn_stats'])
+                       architecture=manifest['architecture'])
     

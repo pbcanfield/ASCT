@@ -1,4 +1,5 @@
 from matplotlib import axes
+from numpy.lib.function_base import average
 import scipy as sp
 from Optimizer import Optimizer
 from Cell import Cell
@@ -33,20 +34,15 @@ import math
 
 
 class CellTuner:
-    def __init__(self, current_injections, modfiles_dir, template_dir, template_name, optimization_parameters, parameter_range, learn_stats=False, summary_funct = None, *args, **kwargs):
+    def __init__(self, current_injections, modfiles_dir, template_dir, template_name, optimization_parameters, parameter_range, architecture='summary', summary_funct = None, features=8,*args, **kwargs):
         
         #Store the current injection list and the spike threshold.
-        #Store if learn_stats is true or false.
         self.__current_injections = current_injections
 
-        #Check if learn_stats is set to true, if it is then the summary funct and all args and kwargs
-        #will be ignored.
-        if learn_stats and (summary_funct != None or args != None or kwargs != None):
-            print('learn_stats is set to true, disregarding summary statistic function arguments.')
-        
+  
         self.__embedding_net = None
-        if learn_stats:
-            self.__embedding_net = SummaryCNN(len(current_injections))
+        if architecture == 'convolution':
+            self.__embedding_net = SummaryCNN(len(current_injections), features)
             summary_funct = self.run_forward_pass
 
             args = ()
@@ -208,15 +204,7 @@ class CellTuner:
     #      found parameter set overlayed on the target cell.
     #   2) The directory the above image should be saved to. None means dont
     #      save the image.
-    def compare_found_solution_to_model(self, top_n=1, display=False, save_dir=None):
-        
-        #Find the target voltage traces.
-        target_responses = []
-        for i_inj in self.__current_injections:
-            self.__sim_environ.set_simulation_params(sim_run_time=self.__sim_run_time, delay=self.__delay, inj_time=self.__inj_time, v_init=self.__v_init, i_inj=i_inj)
-            self.__sim_environ.simulation_wrapper()
-            target_responses.append(np.copy(self.__target_cell.get_potential_as_numpy()))
-        
+    def compare_found_solution_to_target(self, top_n=1, display=False, save_dir=None):
         #Get the time vector.
         time = self.__target_cell.get_time_as_numpy()
 
@@ -240,12 +228,12 @@ class CellTuner:
             if current_injection_length > 1:
                 for index in range(current_injection_length):
                     ax = plt.Subplot(fig,inner[index])
-                    ax.plot(time, target_responses[index], label='Target')
+                    ax.plot(time, self.__target_responses[index], label='Target')
                     ax.plot(time, found_responses[index], label='Found')
                     fig.add_subplot(ax)
             else:
                 ax = plt.Subplot(fig,inner[0])
-                ax.plot(time, target_responses[0], label='Target')
+                ax.plot(time, self.__target_responses[0], label='Target')
                 ax.plot(time, found_responses[0], label='Found')
                 fig.add_subplot(ax)
 
@@ -257,8 +245,15 @@ class CellTuner:
             fig.show()
         
         if save_dir != None:
-            fig.savefig(os.path.join(save_dir, 'Model_Comparison.png'),bbox_inches='tight')
+            fig.savefig(save_dir,bbox_inches='tight')
 
+    def generate_target_from_model(self):
+        #Find the target voltage traces.
+        self.__target_responses = []
+        for i_inj in self.__current_injections:
+            self.__sim_environ.set_simulation_params(sim_run_time=self.__sim_run_time, delay=self.__delay, inj_time=self.__inj_time, v_init=self.__v_init, i_inj=i_inj)
+            self.__sim_environ.simulation_wrapper()
+            self.__target_responses.append(np.copy(self.__target_cell.get_potential_as_numpy()))
 
     def generate_found_FI_curve(self, display=False, save_dir=None):
 
@@ -347,10 +342,26 @@ class CellTuner:
 
     #Return a list of dictionaries containing the parameter names as keys and the found parmeter as the values
     #for the top n values.
-    def get_optimial_parameter_sets(self, top_n):
-        
+    def get_optimial_parameter_sets(self, top_n=1):        
         p_list = []
         for index in range(top_n):
             p_list.append(dict(zip(self.__optimizer.get_simulation_optimization_params(), self.__found_parameters[index])))
         
         return p_list
+
+    #Compare the found parameter sets to the ground truth parameters.
+    def compare_found_parameters_to_ground_truth(self, ground_truth, top_n=1):
+        found_parameters = self.get_optimial_parameter_sets(top_n=top_n)
+        
+        error_list = []
+
+        for i in range(len(found_parameters)):
+            rpe = {}
+            for index, parameter_name in enumerate(found_parameters[i]):
+                rpe[parameter_name] = ((found_parameters[i][parameter_name] - ground_truth[index]) / ground_truth[index]) * 100
+            
+            average_rpe = sum([abs(rpe[key]) for key in rpe])/ len(rpe)  #Calculate relative percent error.
+
+            error_list.append((average_rpe, rpe))
+
+        return error_list
