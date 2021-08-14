@@ -1,9 +1,9 @@
 from matplotlib import axes
 from numpy.lib.function_base import average
 import scipy as sp
-from Optimizer import Optimizer
-from Cell import Cell
-from SummaryNet import SummaryCNN
+from src.Optimizer import Optimizer
+from src.Cell import Cell
+from src.SummaryNet import SummaryCNN
 from neuron import h
 import itertools
 import os

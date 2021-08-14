@@ -2,14 +2,14 @@ import os
 from neuron import h
 import scipy as sp
 from torch.nn.modules.module import T
-from Cell import Cell
-from Optimizer import Optimizer
-from Tuner import CellTuner
+from src.Cell import Cell
+from src.Optimizer import Optimizer
+from src.Tuner import CellTuner
 import argparse
 import json
 from scipy.signal import find_peaks
 import numpy as np
-from SummaryNet import SummaryCNN
+from src.SummaryNet import SummaryCNN
 
 
 #Important statistcs for an adapting cell
