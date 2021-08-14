@@ -7,3 +7,4 @@ nap_km_results/
 *.png
 templates/
 results/*
+submit_tuning_job.sh
