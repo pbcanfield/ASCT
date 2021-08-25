@@ -41,19 +41,20 @@ class CellTuner:
 
   
         self.__embedding_net = None
-        if architecture == 'convolution':
-            self.__embedding_net = SummaryCNN(len(current_injections), features)
+        if architecture == 'convolution' or architecture == 'hybrid':
+            self.__embedding_net = SummaryCNN(len(current_injections), features, hybrid= False if architecture == 'convolution' else True)
             summary_funct = self.run_forward_pass
 
             args = ()
             kwargs = {}
         
 
-         #First lets try to compile our modfiles.
-        if os.system('nrnivmodl %s' % modfiles_dir) == 0:
-            print("Compiled Successfully.")
-        else:
-            print("Could not compile the modfiles at %s" % modfiles_dir)
+        if modfiles_dir != None:
+            #First lets try to compile our modfiles.
+            if os.system('nrnivmodl %s' % modfiles_dir) == 0:
+                print("Compiled Successfully.")
+            else:
+                print("Could not compile the modfiles at %s" % modfiles_dir)
 
         #Now load in the standard run hoc.
         h.load_file('stdrun.hoc')
@@ -105,6 +106,54 @@ class CellTuner:
         else:
             self.__sim_environ.set_current_injection_list(self.__current_injections)
 
+    #This function takes a voltage trace and returns some extracted summary stats which
+    #Should encapsulate most of the information needed for tonic spiking. The idea here 
+    #is to simplify the tuning process for SBI by taking advantage of the segregation
+    #modeling methodology.
+    #Takes two parameter:
+    #   1) This is a 2D list of tuples which define what part of each target voltage trace
+    #      to consider as tonic spiking. This is what will be matched with NaT and Kdr
+    #      parameters. The outer list contains information for each current injection value,
+    #      each sublist tontains pairs of low and high window bounds for multiple locations
+    #      in a spike trace.
+    #   2) The voltage which sets what is considered a spike.
+    
+    def extract_tonic_stats_from_trace(self, tonic_window_bounds, spike_height_threshold=0):
+        #The key features for tonic spiking I use here are:
+        #   1) Average spike peak height.
+        #   2) Average AHP.
+        #   3) Average inter-spike interval.
+        #   4) Number of tonic spikes.
+
+        #The Trace may contain other dynamics other than just tonic spiking. In this case scan
+        #Through the voltage trace and find the first part of the trace which contains tonic 
+        #spiking as defined by a defined spike interval threshold value.
+        stats = []
+        for bounds, trace in zip(tonic_window_bounds, self.__target_responses):
+            spike_times = []
+            spike_trough_times = []
+
+            for low,high in bounds:
+                #Look up where the actual indexes are in the time vector.
+                low = np.where(np.isclose(self.__time, low))[0][0]
+                high = np.where(np.isclose(self.__time, high))[0][0]
+
+                #Record spike times and spike trough times.
+                spike_times.append(np.asarray(find_peaks(trace[low:high],height=spike_height_threshold)[0]))
+                spike_trough_times.append(np.asarray(find_peaks(-trace[low:high])[0]))
+
+            #Now that we have the spike times we calculate average peak height.
+            #For this we can consider all the spiking groups together.
+            all_spikes = np.concatenate(spike_times)
+            all_troughs = np.concatenate(spike_trough_times)
+
+            average_peak = np.mean(np.take(trace, all_spikes))
+            average_trough = np.mean(np.take(trace, all_troughs))
+
+            print(np.take(self.__time, all_spikes),average_peak, average_trough)
+
+
+    
     #Wrapper function which automatically chooses which function to call based on
     #set parameters.
     def optimize_current_injections(self, num_simulations = 500, num_rounds=1, inference_workers=1 ,sample_threshold = 10):
@@ -255,6 +304,9 @@ class CellTuner:
             self.__sim_environ.simulation_wrapper()
             self.__target_responses.append(np.copy(self.__target_cell.get_potential_as_numpy()))
 
+        #Store this for other functions which need the time vector.
+        self.__time = self.__target_cell.get_time_as_numpy()
+
     def generate_found_FI_curve(self, display=False, save_dir=None):
 
         #Find the target voltage traces.
@@ -365,3 +417,9 @@ class CellTuner:
             error_list.append((average_rpe, rpe))
 
         return error_list
+
+    # def generate_posterior_plots(self, top_n=1):
+    #     #Do it for just one right now.
+
+    #     samples = posterior.sample((10000,), 
+    #                        x=observation_summary_statistics)

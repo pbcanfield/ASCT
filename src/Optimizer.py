@@ -213,12 +213,15 @@ class Optimizer():
             #Do the first round so we train the weights for the CNN.
             theta, x = simulate_for_sbi(self.__simulator, self.__prior, num_simulations=num_simulations,num_workers=workers)
             density_estimator = self.__inference.append_simulations(theta, x)
-            density_estimator.train(show_train_summary=True)
+            density_estimator.train(show_train_summary=True, learning_rate=0.001)
             proposal = self.__inference.build_posterior()
             self.__posterior.append(proposal)
 
             #Set defualt x.
-            proposal = self.__posterior[-1].set_default_x(self.__observed_stats)
+            #Take maximum probability here. Potentially.
+            samples = self.__posterior[-1].sample((1000,), x=self.__observed_stats)
+            log_prob = self.__posterior[-1].log_prob(samples, x=self.__observed_stats, norm_posterior=False)
+            proposal = samples[np.argmax(log_prob)]
 
     def clear_posterior(self):
         self.__posterior = []
