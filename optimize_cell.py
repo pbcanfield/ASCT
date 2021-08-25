@@ -1,15 +1,9 @@
 import os
-from neuron import h
-import scipy as sp
-from torch.nn.modules.module import T
-from src.Cell import Cell
-from src.Optimizer import Optimizer
 from src.Tuner import CellTuner
 import argparse
 import json
 from scipy.signal import find_peaks
 import numpy as np
-from src.SummaryNet import SummaryCNN
 
 
 #Important statistcs for an adapting cell
@@ -83,63 +77,16 @@ def calculate_adapting_statistics(cell,sim_variables=(), spike_height_threshold=
 
     return np.concatenate((resting, average_peak, average_trough, adaptation_index, adaptation_speed, spike_num), axis=None)
 
-def test_optimizer(template_name, template_dir='cells', modfiles_dir=None):
-    if modfiles_dir == None:
-        modfiles_dir = os.path.join(os.path.dirname(template_dir),'modfiles')
-    
-    if os.path.exists('x86_64'):
-        os.system('rm -rf x86_64')
-
-    #First lets try to compile our modfiles.
-    if os.system('nrnivmodl %s' % modfiles_dir) == 0:
-        print("Compiled Successfully.")
-    else:
-        print("Could not compile the modfiles at %s" % modfiles_dir)
-
-    #Now load in the standard run hoc.
-    h.load_file('stdrun.hoc')
-    
-
-    #Summary Stats Test
-    # cell_obj = Cell(template_dir, template_name, calculate_adapting_statistics)
-    
-    # optimizer = Optimizer(cell_obj, 
-    #                       None,                                                        #Parameter list, none for now.
-    #                       ([0.001, 0.001, 0.00001, 0.001,], [0.1, 0.1, 0.001, 0.1]),   #Parameter range.
-    #                       calculate_adapting_statistics,                               #Summary function.
-    #                       (600,50,500),                                                #args for summary function
-    #                       spike_adaptation_threshold=0.95,                             #kwargs for summary function
-    #                       spike_height_threshold=0)
-
-    # optimizer.set_simulation_params()
-    # optimizer.simulation_wrapper()
-
-    # print(cell_obj.generate_simulation_image(save_img_dir='generated1.png'))
-    # cell_obj.graph_potential(save_img_dir='original.png')
-
-    #CNN Test
-    cell_obj = Cell(template_dir, template_name, None)
-    optimizer = Optimizer(cell_obj, 
-                          ['gbar_natCA3', 'gbar_kdrCA3'], #Parameter list.
-                          ([0.001, 0.001], [0.1, 0.1]),   #Parameter range.
-                          None)   
-                        
-
-    embedding_net = SummaryCNN()
-    optimizer.run_inference_learned_stats(embedding_net, num_simulations=1000)
-
 def tune_with_template(current_injections, low, high, 
                        parameter_list, num_simulations, num_rounds, result_threshold, features,
                        sim_run_time, delay, inj_time, v_init, spike_height, spike_adaptation,
                        template_name, target_template_name,
                        target_template_dir, template_dir, modfiles_dir, ground_truth, 
-                       threshold_sample_size, workers, display,save_dir, architecture):
+                       threshold_sample_size, workers, display,save_dir, architecture,
+                       parse_args):
 
-    
-    if os.path.exists('x86_64'):
-        os.system('rm -rf x86_64')
-
-
+    if not parse_args:
+        modfiles_dir = None
     
     tuner = CellTuner(current_injections, 
                       modfiles_dir, 
@@ -156,6 +103,10 @@ def tune_with_template(current_injections, low, high,
 
     tuner.set_simulation_params(sim_run_time=sim_run_time, delay=delay,inj_time=inj_time,v_init=v_init)
     tuner.calculate_target_stats_from_model(target_template_dir, target_template_name)
+    
+
+    #tuner.extract_tonic_stats_from_trace([[(150,250)],[(100,200),(200,300)],[(75,300)]])
+
     tuner.optimize_current_injections(num_simulations=num_simulations,inference_workers=workers, sample_threshold=threshold_sample_size, num_rounds=num_rounds)
     tuner.find_best_parameter_sets()
     
@@ -170,7 +121,6 @@ def tune_with_template(current_injections, low, high,
     tuner.generate_target_from_model()
     tuner.compare_found_solution_to_target(result_threshold,display,save_dir)
     
-
 def parse_config(config_directory):
     data = None
 
@@ -195,6 +145,7 @@ if __name__ == '__main__':
     argument_parser.add_argument('config_dir', type=str, help='the optimization config file directory')
     argument_parser.add_argument('save_dir', nargs='?', type=str, default=None, help='[optional] the directory to save figures to')
     argument_parser.add_argument('-g', default=False, action='store_true', help='displays graphics')
+    argument_parser.add_argument('-c', default=False, action='store_true', help='compiles modfiles')
     argument_parser.add_argument('-n', default=1, type=int, help='the number of found parameters to show (must be less than the threshold sample size in the optimization config file)')
 
     args = argument_parser.parse_args()
@@ -225,12 +176,13 @@ if __name__ == '__main__':
                        target_template_name=manifest['target_template_name'],
                        target_template_dir=manifest['target_template_dir'],
                        template_dir=manifest['template_dir'],
-                       modfiles_dir=manifest['modfiles_dir'],
+                       modfiles_dir=manifest['modfiles_dir'] if 'modfiles_dir' in manifest else None,
                        ground_truth=optimization_parameters['ground_truth'],
                        threshold_sample_size=run['threshold_sample_size'],
                        workers=run['workers'],
                        display=args.g,
                        save_dir=args.save_dir,
                        result_threshold=args.n,
-                       architecture=manifest['architecture'])
+                       architecture=manifest['architecture'],
+                       parse_args=args.c)
     
