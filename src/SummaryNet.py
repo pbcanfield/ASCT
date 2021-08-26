@@ -1,6 +1,9 @@
 import torch.nn as nn 
 import torch.nn.functional as F 
 import torch
+import numpy as np
+from scipy import stats
+
 
 #Information to calculate 1D CNN output size and maxpool output size.
 #https://towardsdatascience.com/pytorch-basics-how-to-train-your-neural-net-intro-to-cnn-26a14c2ea29
@@ -68,13 +71,15 @@ class SummaryCNN(nn.Module):
         #Then concat with final x.
 
         if self.__hybrid:
-            flat = torch.flatten(self.calculate_hybrid_stats(raw_data), start_dim=1)
-            x = torch.cat((x,flat), 1)
+            x = torch.cat((x,self.calculate_hybrid_stats(raw_data)), 1)
 
         return x
 
     def calculate_hybrid_stats(self, x):
-        mean     = torch.mean(x,self.__current_injections-1,keepdim=True)
-        variance = torch.std(x,self.__current_injections-1,keepdim=True)
-        return torch.cat((mean,variance), self.__current_injections-1)
+        data = x.numpy()
+        mean     = np.mean(data,-1)
+        variance = np.std(data,-1)
+        skew     = stats.skew(data,-1)
+       
+        return torch.from_numpy(np.concatenate((mean,variance,skew), -1))
             

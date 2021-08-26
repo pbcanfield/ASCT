@@ -297,6 +297,7 @@ class CellTuner:
             fig.savefig(save_dir,bbox_inches='tight')
 
     def generate_target_from_model(self):
+
         #Find the target voltage traces.
         self.__target_responses = []
         for i_inj in self.__current_injections:
@@ -423,3 +424,44 @@ class CellTuner:
 
     #     samples = posterior.sample((10000,), 
     #                        x=observation_summary_statistics)
+
+    def generate_parameter_by_lms_threshold(self, threshold, num_simulations=100, workers=1, threshold_sample_size=1000, num_rounds=1,max_runs=20):
+        
+        final_param_set = None
+        best_t_sum = float('inf')
+        for _ in range(max_runs):
+            self.optimize_current_injections(num_simulations=num_simulations,inference_workers=workers, sample_threshold=threshold_sample_size, num_rounds=num_rounds)
+            self.find_best_parameter_sets()
+
+            #Generate the found responses
+            found_responses = []
+            for i_inj in self.__current_injections:
+                self.__optimizer.set_simulation_params(sim_run_time=self.__sim_run_time, delay=self.__delay, inj_time=self.__inj_time, v_init=self.__v_init, i_inj=i_inj)
+                self.__optimizer.simulation_wrapper(self.__found_parameters[0])
+                found_responses.append(np.copy(self.__to_optimize.get_potential_as_numpy()))
+
+            #Generate target responses.
+            self.generate_target_from_model()
+            t_sum = 0
+            num_injections = len(self.__current_injections)
+            for i in range(num_injections):
+                t_sum += np.square(found_responses[i] - self.__target_responses[i]).mean()
+
+            print(t_sum)
+
+            if t_sum <= num_injections * threshold:
+                final_param_set = self.__found_parameters[0]
+                print('t_sum = %f breaking' % t_sum)
+                break
+
+            if t_sum <= best_t_sum:
+                best_t_sum = t_sum
+                final_param_set = self.__found_parameters[0]
+
+            #Clear found paramters after each run.
+            self.__found_parameters = []
+        
+        self.__found_parameters = [final_param_set]
+        return final_param_set
+
+

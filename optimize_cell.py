@@ -107,20 +107,23 @@ def tune_with_template(current_injections, low, high,
 
     #tuner.extract_tonic_stats_from_trace([[(150,250)],[(100,200),(200,300)],[(75,300)]])
 
-    tuner.optimize_current_injections(num_simulations=num_simulations,inference_workers=workers, sample_threshold=threshold_sample_size, num_rounds=num_rounds)
-    tuner.find_best_parameter_sets()
+    # tuner.optimize_current_injections(num_simulations=num_simulations,inference_workers=workers, sample_threshold=threshold_sample_size, num_rounds=num_rounds)
+    # tuner.find_best_parameter_sets()
     
-    print('The optimizer found the following parameter set:')
-    print(tuner.get_optimial_parameter_sets(result_threshold))
+    # print('The optimizer found the following parameter set:')
+    # print(tuner.get_optimial_parameter_sets(result_threshold))
 
-    print('Relative Percent Error from ground truth:')
-    print(tuner.compare_found_parameters_to_ground_truth(ground_truth,result_threshold))
+    # print('Relative Percent Error from ground truth:')
+    # print(tuner.compare_found_parameters_to_ground_truth(ground_truth,result_threshold))
 
-    #print('The matching ratio is: %f (closer to 1 is better)' % tuner.get_matching_ratio())
+    # #print('The matching ratio is: %f (closer to 1 is better)' % tuner.get_matching_ratio())
 
-    tuner.generate_target_from_model()
-    tuner.compare_found_solution_to_target(result_threshold,display,save_dir)
-    
+    # tuner.generate_target_from_model()
+    # tuner.compare_found_solution_to_target(result_threshold,display,save_dir)
+
+    tuner.generate_parameter_by_lms_threshold(threshold=200, num_simulations=num_simulations,workers=workers, num_rounds=num_rounds)
+    tuner.compare_found_solution_to_target(1,display,save_dir)
+
 def parse_config(config_directory):
     data = None
 

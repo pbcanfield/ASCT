@@ -13,9 +13,9 @@
         "spike_adaptation": 0.95,
         "delay": 10,
         "duration": 300,
-        "num_simulations": 300,
-        "num_rounds": 2,
-        "features": 6,
+        "num_simulations": 100,
+        "num_rounds": 1,
+        "features": 7,
         "threshold_sample_size": 4,
         "workers": 1
       },
