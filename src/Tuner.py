@@ -308,90 +308,7 @@ class CellTuner:
         #Store this for other functions which need the time vector.
         self.__time = self.__target_cell.get_time_as_numpy()
 
-    def generate_found_FI_curve(self, display=False, save_dir=None):
-
-        #Find the target voltage traces.
-        target_responses = []
-        for i_inj in self.__current_injections:
-            self.__sim_environ.set_simulation_params(sim_run_time=self.__sim_run_time, delay=self.__delay, inj_time=self.__inj_time, v_init=self.__v_init, i_inj=i_inj)
-            self.__sim_environ.simulation_wrapper()
-            target_responses.append(np.copy(self.__target_cell.get_potential_as_numpy()))
-        
-
-        #Now get the real cell with our current injections.
-        found_responses = []
-        for i_inj in self.__current_injections:
-            self.__optimizer.set_simulation_params(sim_run_time=self.__sim_run_time, delay=self.__delay, inj_time=self.__inj_time, v_init=self.__v_init, i_inj=i_inj)
-            self.__optimizer.simulation_wrapper(self.__found_parameters)
-            found_responses.append(np.copy(self.__to_optimize.get_potential_as_numpy()))
-        
-        #Get the time vector.
-        time = self.__target_cell.get_time_as_numpy()
-
-
-        #Create two graphs of both transient and average FI.
-
-
-        # #Resting Membrane Potential.
-
-        # #We need to calculate the resting membrane potential,
-        # #to do this we need to find a part of the simmulation where it is at rest.
-        # #preferably we get this from the end after the current injection, however if
-        # #the current injection ends at the end of the simulation then we can take it from the
-        # #beginning with some padding.
-        # padding = 50
-        # if sim_run_time == delay + inj_time:
-        #     start_injection = np.where(np.isclose(time, sim_run_time))[0][0]
-        #     start_point = np.where(np.isclose(time, sim_run_time - padding))[0][0]
-        #     resting = np.mean(trace[start_point:start_injection])
-        # else:
-        #     end_injection = np.where(np.isclose(time,delay + inj_time,0.99))[0][0]
-        #     end_point = len(time) - 1
-        #     resting = np.mean(trace[end_injection:end_point])
-        
-        # #Average spike and trough voltage.
-        # spike_times = np.asarray(find_peaks(trace,height=spike_height_threshold)[0])
-        
-        # #Take care of the case where nothing spikes.
-        # if len(spike_times) == 0:
-        #     return np.concatenate((resting, resting, resting, 0, 0, 0),axis=None) 
-
-        # average_peak = np.mean(np.take(trace, spike_times))
-        # average_trough = np.mean(np.take(trace, np.asarray(find_peaks(-trace,height=spike_height_threshold)[0])))
-
-        # #Take care of the case where there is only one spike.
-        # if len(spike_times) == 1:
-        #     return np.concatenate((resting, average_peak, average_trough, 0, 1, 1),axis=None) 
-
-        # #Adaptation ratio        
-        # f_max = 1.0 / (spike_times[1] - spike_times[0])
-        # f_min = 1.0 / (spike_times[-1] - spike_times[-2])
-
-        # adaptation_index = (f_max - f_min) / f_max
-
-        # #Adaptation speed.
-        # instantaneous_freq = 1.0 / np.diff(spike_times)
-        # adaptation_speed = np.where(np.isclose(instantaneous_freq, f_min, spike_adaptation_threshold))[0][0]
-
-        # #Number of spikes
-        # spike_num = len(spike_times)    
-        
-        # if DEBUG:
-        #     print('Calculated resting membrane potential: %f' % resting)
-        #     print('Average peak voltage: %f' % average_peak)
-        #     print('Average trough voltage: %f' % average_trough)
-        #     print('Adaptation ratio: %f' % adaptation_index)
-        #     print('Adaptation speed: %d' % adaptation_speed)
-        #     print('Number of spikes: %d' % spike_num)
-
-
-        # fig.tight_layout()
-
-        # if display:  
-        #     plt.show()
-        
-        # if save_dir != None:
-        #     plt.savefig(os.path.join(save_dir, 'Model_Comparison.png'))
+    #def generate_found_FI_curve(self, display=False, save_dir=None):
 
     #Return a list of dictionaries containing the parameter names as keys and the found parmeter as the values
     #for the top n values.
@@ -418,50 +335,27 @@ class CellTuner:
             error_list.append((average_rpe, rpe))
 
         return error_list
+    
+    #Compare the best found solution to the target voltage trace and return the error.
+    #This returns the average cosine similiarity between all found and target voltage traces.
+    def get_best_trace_error(self):
+        #generate the found voltage responses.
+        found_responses = []
+        for i_inj in self.__current_injections:
+            self.__optimizer.set_simulation_params(sim_run_time=self.__sim_run_time, delay=self.__delay, inj_time=self.__inj_time, v_init=self.__v_init, i_inj=i_inj)
+            self.__optimizer.simulation_wrapper(self.__found_parameters[0])
+            found_responses.append(np.copy(self.__to_optimize.get_potential_as_numpy()))
+        
+        #Make sure the target is generated.
+        self.generate_target_from_model()
+
+        #Compute average cosine similarity accross current injections.
+        num_injections = len(self.__current_injections)
+        mean_similarity = 0
+        for i in range(num_injections):
+            mean_similarity += np.dot(found_responses[i], self.__target_responses[i]) / (np.linalg.norm(found_responses[i]) * np.linalg.norm(self.__target_responses[i]))
+        mean_similarity /= num_injections
+        
+        return 1.0 - mean_similarity
 
     # def generate_posterior_plots(self, top_n=1):
-    #     #Do it for just one right now.
-
-    #     samples = posterior.sample((10000,), 
-    #                        x=observation_summary_statistics)
-
-    def generate_parameter_by_lms_threshold(self, threshold, num_simulations=100, workers=1, threshold_sample_size=1000, num_rounds=1,max_runs=20):
-        
-        final_param_set = None
-        best_t_sum = float('inf')
-        for _ in range(max_runs):
-            self.optimize_current_injections(num_simulations=num_simulations,inference_workers=workers, sample_threshold=threshold_sample_size, num_rounds=num_rounds)
-            self.find_best_parameter_sets()
-
-            #Generate the found responses
-            found_responses = []
-            for i_inj in self.__current_injections:
-                self.__optimizer.set_simulation_params(sim_run_time=self.__sim_run_time, delay=self.__delay, inj_time=self.__inj_time, v_init=self.__v_init, i_inj=i_inj)
-                self.__optimizer.simulation_wrapper(self.__found_parameters[0])
-                found_responses.append(np.copy(self.__to_optimize.get_potential_as_numpy()))
-
-            #Generate target responses.
-            self.generate_target_from_model()
-            t_sum = 0
-            num_injections = len(self.__current_injections)
-            for i in range(num_injections):
-                t_sum += np.square(found_responses[i] - self.__target_responses[i]).mean()
-
-            print(t_sum)
-
-            if t_sum <= num_injections * threshold:
-                final_param_set = self.__found_parameters[0]
-                print('t_sum = %f breaking' % t_sum)
-                break
-
-            if t_sum <= best_t_sum:
-                best_t_sum = t_sum
-                final_param_set = self.__found_parameters[0]
-
-            #Clear found paramters after each run.
-            self.__found_parameters = []
-        
-        self.__found_parameters = [final_param_set]
-        return final_param_set
-
-
