@@ -4,7 +4,7 @@ import argparse
 import json
 from scipy.signal import find_peaks
 import numpy as np
-
+import collections
 
 #Important statistcs for an adapting cell
 #Resting membrane potential.
@@ -120,7 +120,74 @@ def tune_with_template(current_injections, low, high,
 
     tuner.generate_target_from_model()
     tuner.compare_found_solution_to_target(result_threshold,display,save_dir)
+
+def tune_bounded_by_threshold(current_injections, low, high, 
+                              parameter_list, num_simulations, num_rounds, result_threshold, features,
+                              sim_run_time, delay, inj_time, v_init, spike_height, spike_adaptation,
+                              template_name, target_template_name,
+                              target_template_dir, template_dir, modfiles_dir, ground_truth, 
+                              threshold_sample_size, workers, display,save_dir, architecture,
+                              parse_args, max_rounds = 1, matching_threshold = 0.99):
+
+    if not parse_args:
+        modfiles_dir = None
+
+    best_tuner_error = float('inf')
+    best = None
     
+    num_rounds = 0
+    target_error = 1.0 - matching_threshold
+    for _ in range(max_rounds):
+        num_rounds += 1
+
+        #initialize the tuner.
+        tuner = CellTuner(current_injections, 
+                      modfiles_dir, 
+                      template_dir, 
+                      template_name, 
+                      parameter_list, 
+                      (low, high), 
+                      architecture=architecture,
+                      summary_funct=calculate_adapting_statistics,
+                      features=features,
+                      sim_variables=(600,50,500), 
+                      spike_height_threshold=spike_height,
+                      spike_adaptation_threshold=spike_adaptation)
+        
+        tuner.set_simulation_params(sim_run_time=sim_run_time, delay=delay,inj_time=inj_time,v_init=v_init)
+        tuner.calculate_target_stats_from_model(target_template_dir, target_template_name)
+
+        #Find the optimal paramter set.
+        tuner.optimize_current_injections(num_simulations=num_simulations,inference_workers=workers, sample_threshold=threshold_sample_size, num_rounds=num_rounds)
+        tuner.find_best_parameter_sets()
+
+        #Now we get the error of the target trace.
+        error = tuner.get_best_trace_error()
+        
+        if error < best_tuner_error:
+            best_tuner_error = error
+            best = tuner
+
+        #check if we've found a result that matches our threshold yet.
+        if error < target_error:
+            break
+
+    #Save the best solution.
+    if num_rounds != max_rounds:
+        print('A parameter set which has a correlation greater than %f was found after %d iterations.' % (matching_threshold, num_rounds))
+    else:
+        print('A parameter set was not found which has a correlation greater than %f in %d iterations, using best found instead.' % (matching_threshold, max_rounds))
+
+    print('The optimizer found the following parameter set:')
+    print(best.get_optimial_parameter_sets(result_threshold))
+
+    print('Relative Percent Error from ground truth:')
+    print(best.compare_found_parameters_to_ground_truth(ground_truth,result_threshold))
+
+
+    best.generate_target_from_model()
+    best.compare_found_solution_to_target(result_threshold,display,save_dir)
+
 def parse_config(config_directory):
     data = None
 
@@ -141,7 +208,6 @@ if __name__ == '__main__':
     
     argument_parser = argparse.ArgumentParser(description='Uses SBI to find optimal parameter sets for biologically realistic neuron simulations.')
 
-
     argument_parser.add_argument('config_dir', type=str, help='the optimization config file directory')
     argument_parser.add_argument('save_dir', nargs='?', type=str, default=None, help='[optional] the directory to save figures to')
     argument_parser.add_argument('-g', default=False, action='store_true', help='displays graphics')
@@ -159,7 +225,34 @@ if __name__ == '__main__':
     optimization_parameters = config_data['optimization_parameters']
 
     
-    tune_with_template(current_injections=optimization_parameters['current_injections'], 
+    # tune_with_template(current_injections=optimization_parameters['current_injections'], 
+    #                    low=optimization_parameters['lows'],
+    #                    high=optimization_parameters['highs'],
+    #                    parameter_list=optimization_parameters['parameters'],
+    #                    num_simulations=run['num_simulations'],
+    #                    num_rounds = run['num_rounds'],
+    #                    features = run['features'],
+    #                    sim_run_time=run['tstop'],
+    #                    delay=run['delay'],
+    #                    inj_time=run['duration'],
+    #                    v_init=conditions['v_init'],
+    #                    spike_height=run['spike_threshold'],
+    #                    spike_adaptation=run['spike_adaptation'],
+    #                    template_name=manifest['template_name'],
+    #                    target_template_name=manifest['target_template_name'],
+    #                    target_template_dir=manifest['target_template_dir'],
+    #                    template_dir=manifest['template_dir'],
+    #                    modfiles_dir=manifest['modfiles_dir'] if 'modfiles_dir' in manifest else None,
+    #                    ground_truth=optimization_parameters['ground_truth'],
+    #                    threshold_sample_size=run['threshold_sample_size'],
+    #                    workers=run['workers'],
+    #                    display=args.g,
+    #                    save_dir=args.save_dir,
+    #                    result_threshold=args.n,
+    #                    architecture=manifest['architecture'],
+    #                    parse_args=args.c)
+
+    tune_bounded_by_threshold(current_injections=optimization_parameters['current_injections'], 
                        low=optimization_parameters['lows'],
                        high=optimization_parameters['highs'],
                        parameter_list=optimization_parameters['parameters'],
@@ -185,4 +278,6 @@ if __name__ == '__main__':
                        result_threshold=args.n,
                        architecture=manifest['architecture'],
                        parse_args=args.c)
+
+    
     
