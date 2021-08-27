@@ -4,7 +4,7 @@ import argparse
 import json
 from scipy.signal import find_peaks
 import numpy as np
-import collections
+from datetime import datetime
 
 #Important statistcs for an adapting cell
 #Resting membrane potential.
@@ -127,7 +127,15 @@ def tune_bounded_by_threshold(current_injections, low, high,
                               template_name, target_template_name,
                               target_template_dir, template_dir, modfiles_dir, ground_truth, 
                               threshold_sample_size, workers, display,save_dir, architecture,
-                              parse_args, max_rounds = 1, matching_threshold = 0.99):
+                              parse_args, log, max_rounds = 1, matching_threshold = 0.99):
+
+    log_name = 'tuning_log_%s.log' % datetime.now().strftime("%m_%d_%Y%H:%M:%S")
+    file = None
+    if log:
+        if not os.path.isdir('tuning_logs'):
+            os.mkdir('tuning_logs')
+
+        file = open('tuning_logs/%s' % log_name, 'w')
 
     if not parse_args:
         modfiles_dir = None
@@ -135,10 +143,10 @@ def tune_bounded_by_threshold(current_injections, low, high,
     best_tuner_error = float('inf')
     best = None
     
-    num_rounds = 0
+    count_rounds = 0
     target_error = 1.0 - matching_threshold
     for _ in range(max_rounds):
-        num_rounds += 1
+        count_rounds += 1
 
         #initialize the tuner.
         tuner = CellTuner(current_injections, 
@@ -163,7 +171,11 @@ def tune_bounded_by_threshold(current_injections, low, high,
 
         #Now we get the error of the target trace.
         error = tuner.get_best_trace_error()
-        
+        text = '\n--- Iteration %d, Correlation %f ---\n' % (count_rounds, 1.0 - error)
+        print(text)
+        if log:
+            file.write(text)
+
         if error < best_tuner_error:
             best_tuner_error = error
             best = tuner
@@ -173,20 +185,39 @@ def tune_bounded_by_threshold(current_injections, low, high,
             break
 
     #Save the best solution.
-    if num_rounds != max_rounds:
-        print('A parameter set which has a correlation greater than %f was found after %d iterations.' % (matching_threshold, num_rounds))
+    text = ''
+    if count_rounds != max_rounds:
+        text = 'A parameter set which has a correlation greater than %f was found after %d iterations.' % (matching_threshold, count_rounds)
     else:
-        print('A parameter set was not found which has a correlation greater than %f in %d iterations, using best found instead.' % (matching_threshold, max_rounds))
+        text = 'A parameter set was not found which has a correlation greater than %f in %d iterations, using best found (%f) instead.' % (matching_threshold, max_rounds, 1.0-best_tuner_error)
+    
+    print(text)
+    if log:
+        file.write(text)
 
-    print('The optimizer found the following parameter set:')
-    print(best.get_optimial_parameter_sets(result_threshold))
+    text = 'The optimizer found the following parameter set(s):' 
+    output = str(best.get_optimial_parameter_sets(result_threshold))
 
-    print('Relative Percent Error from ground truth:')
-    print(best.compare_found_parameters_to_ground_truth(ground_truth,result_threshold))
-
+    print(text)
+    print(output)
+    if log:
+        file.write(text)
+        file.write(output)
+    
+    text = 'Relative Percent Error from ground truth:'
+    output = str(best.compare_found_parameters_to_ground_truth(ground_truth,result_threshold))
+    
+    print(text)
+    print(output)
+    if log:
+        file.write(text)
+        file.write(output)
 
     best.generate_target_from_model()
     best.compare_found_solution_to_target(result_threshold,display,save_dir)
+
+    if log:
+        file.close()
 
 def parse_config(config_directory):
     data = None
@@ -212,6 +243,7 @@ if __name__ == '__main__':
     argument_parser.add_argument('save_dir', nargs='?', type=str, default=None, help='[optional] the directory to save figures to')
     argument_parser.add_argument('-g', default=False, action='store_true', help='displays graphics')
     argument_parser.add_argument('-c', default=False, action='store_true', help='compiles modfiles')
+    argument_parser.add_argument('-l', default=False, action='store_true', help='store log files')
     argument_parser.add_argument('-n', default=1, type=int, help='the number of found parameters to show (must be less than the threshold sample size in the optimization config file)')
 
     args = argument_parser.parse_args()
@@ -253,6 +285,7 @@ if __name__ == '__main__':
                        save_dir=args.save_dir,
                        result_threshold=args.n,
                        architecture=manifest['architecture'],
+                       log=args.l,
                        parse_args=args.c)
 
     
