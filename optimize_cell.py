@@ -133,7 +133,7 @@ def tune_bounded_by_threshold(current_injections, low, high,
                               threshold_sample_size, workers, display,save_dir, architecture,
                               parse_args, log, max_rounds = 1, matching_threshold = 0.99):
 
-    start = time.timme()
+    start = time.time()
     log_name = 'tuning_log_%s.log' % datetime.now().strftime("%m_%d_%Y|%H:%M:%S")
     file = None
     if log:
