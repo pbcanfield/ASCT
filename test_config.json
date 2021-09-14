@@ -5,15 +5,15 @@
         "template_dir": "cells/CA3Cell_Qian/CA3.hoc",
         "target_template_dir": "cells/CA3Cell_Qian/CA3.hoc",
         "modfiles_dir": "cells/CA3Cell_Qian/modfiles",
-        "architecture": "convolution"
+        "architecture": "summary"
       },
       "optimization_settings": {
         "spike_threshold": 0,
         "spike_adaptation": 0.95,
-        "max_iterations": 100,
+        "max_iterations": 1,
         "matching_threshold": 0.99,
-        "num_simulations": 100,
-        "num_rounds": 1,
+        "num_simulations": 300,
+        "num_rounds": 2,
         "features": 8,
         "threshold_sample_size": 4,
         "workers": 1

@@ -43,7 +43,7 @@ class CellTuner:
         self.__embedding_net = None
         if architecture == 'convolution' or architecture == 'hybrid':
             self.__embedding_net = SummaryCNN(len(current_injections), features, hybrid= False if architecture == 'convolution' else True)
-            summary_funct = self.run_forward_pass
+            summary_funct = None
 
             args = ()
             kwargs = {}
@@ -66,6 +66,8 @@ class CellTuner:
         self.__optimizer = Optimizer(self.__to_optimize, optimization_parameters, parameter_range, summary_funct, *args, **kwargs)
 
         self.__parameter_samples = []
+
+        self.NUM_SAMPLES = 1000
 
     def run_forward_pass(self, input):
         out = self.__embedding_net(input)
@@ -97,62 +99,7 @@ class CellTuner:
                                       *self.__optimizer.summary_stat_args,
                                       **self.__optimizer.summary_stat_kwargs)
 
-        if self.__embedding_net == None:
-            #Loop through each current injection and calculate the target statitics.
-            self.__target_stats = []
-            for i_inj in self.__current_injections:
-                self.__sim_environ.set_simulation_params(sim_run_time=self.__sim_run_time, delay=self.__delay, inj_time=self.__inj_time, v_init=self.__v_init, i_inj=i_inj)
-                self.__target_stats.append(self.__sim_environ.simulation_wrapper())
-        else:
-            self.__sim_environ.set_current_injection_list(self.__current_injections)
-
-    #This function takes a voltage trace and returns some extracted summary stats which
-    #Should encapsulate most of the information needed for tonic spiking. The idea here 
-    #is to simplify the tuning process for SBI by taking advantage of the segregation
-    #modeling methodology.
-    #Takes two parameter:
-    #   1) This is a 2D list of tuples which define what part of each target voltage trace
-    #      to consider as tonic spiking. This is what will be matched with NaT and Kdr
-    #      parameters. The outer list contains information for each current injection value,
-    #      each sublist tontains pairs of low and high window bounds for multiple locations
-    #      in a spike trace.
-    #   2) The voltage which sets what is considered a spike.
-    
-    def extract_tonic_stats_from_trace(self, tonic_window_bounds, spike_height_threshold=0):
-        #The key features for tonic spiking I use here are:
-        #   1) Average spike peak height.
-        #   2) Average AHP.
-        #   3) Average inter-spike interval.
-        #   4) Number of tonic spikes.
-
-        #The Trace may contain other dynamics other than just tonic spiking. In this case scan
-        #Through the voltage trace and find the first part of the trace which contains tonic 
-        #spiking as defined by a defined spike interval threshold value.
-        stats = []
-        for bounds, trace in zip(tonic_window_bounds, self.__target_responses):
-            spike_times = []
-            spike_trough_times = []
-
-            for low,high in bounds:
-                #Look up where the actual indexes are in the time vector.
-                low = np.where(np.isclose(self.__time, low))[0][0]
-                high = np.where(np.isclose(self.__time, high))[0][0]
-
-                #Record spike times and spike trough times.
-                spike_times.append(np.asarray(find_peaks(trace[low:high],height=spike_height_threshold)[0]))
-                spike_trough_times.append(np.asarray(find_peaks(-trace[low:high])[0]))
-
-            #Now that we have the spike times we calculate average peak height.
-            #For this we can consider all the spiking groups together.
-            all_spikes = np.concatenate(spike_times)
-            all_troughs = np.concatenate(spike_trough_times)
-
-            average_peak = np.mean(np.take(trace, all_spikes))
-            average_trough = np.mean(np.take(trace, all_troughs))
-
-            print(np.take(self.__time, all_spikes),average_peak, average_trough)
-
-
+        self.__sim_environ.set_current_injection_list(self.__current_injections)
     
     #Wrapper function which automatically chooses which function to call based on
     #set parameters.
@@ -169,24 +116,36 @@ class CellTuner:
                                                  num_rounds=num_rounds)
     
     def optimize_current_injections_cnn(self, num_simulations = 500, num_rounds = 1, inference_workers=1):        
-        
-        #Run inference by passing in the current injections in as independent channels.
-        
-        # self.__optimizer.set_target_statistics(target_stat)
-        # self.__optimizer.set_simulation_params(i_inj=current_injection)
         self.__optimizer.set_current_injection_list(self.__current_injections)
         self.__optimizer.run_inference_learned_stats(self.__embedding_net, self.__sim_environ, num_simulations=num_simulations, num_rounds=num_rounds, workers=inference_workers)
-        self.__parameter_samples.append(self.__optimizer.get_samples(-1, sample_threshold=self.__top_n))
-        # self.__optimizer.clear_posterior()
+        self.__parameter_samples = self.__optimizer.get_samples(-1, sample_threshold=self.NUM_SAMPLES)
 
     def optimize_current_injections_summary(self, num_simulations = 500, num_rounds=1, inference_workers=1):
-        #This could be parallelized for speedups.
-        for target_stat, current_injection in zip(self.__target_stats, self.__current_injections):
-            self.__optimizer.set_target_statistics(target_stat)
-            self.__optimizer.set_simulation_params(i_inj=current_injection)
-            self.__optimizer.run_inference_multiround(num_simulations=num_simulations, workers=inference_workers, num_rounds=num_rounds)
-            self.__parameter_samples.append(self.__optimizer.get_samples(-1, sample_threshold=self.__top_n))
+        self.__optimizer.set_current_injection_list(self.__current_injections)
+        self.__optimizer.run_inference_multiround(self.__sim_environ, num_simulations=num_simulations, workers=inference_workers, num_rounds=num_rounds)
+        self.__parameter_samples = self.__optimizer.get_samples(-1, sample_threshold=self.NUM_SAMPLES)
             
+
+    def compute_correlation_for_parameter_set(self, parameter_set):
+        #generate the found voltage responses.
+        found_responses = []
+        for i_inj in self.__current_injections:
+            self.__optimizer.set_simulation_params(sim_run_time=self.__sim_run_time, delay=self.__delay, inj_time=self.__inj_time, v_init=self.__v_init, i_inj=i_inj)
+            self.__optimizer.simulation_wrapper(parameter_set)
+            found_responses.append(np.copy(self.__to_optimize.get_potential_as_numpy()))
+        
+       
+
+        #Compute average cosine similarity accross current injections.
+        num_injections = len(self.__current_injections)
+        mean_similarity = 0
+        for i in range(num_injections):
+            mean_similarity += np.dot(found_responses[i], self.__target_responses[i]) / (np.linalg.norm(found_responses[i]) * np.linalg.norm(self.__target_responses[i]))
+        mean_similarity /= num_injections
+        
+        return mean_similarity
+
+
     #Find the best parameter set based on the calulated posterior distributions.
     #This is done by getting the top 'x' solutions from each posterior distribution
     #and finding the closest match in each set of parameters.
@@ -197,55 +156,30 @@ class CellTuner:
     #i.e. all parameter sets from out of the top 'x' are treated equally when in reality the
     #first ones are really the best solutions, this could be taken into account in a better
     #function
-    def find_best_parameter_sets(self, SHOW_BEST_SET=False):
-        #What we need to do is find the parameter sets that are the most similar within our threshold.
-        #First generate a list of all possible parameter perumutations.
-        all_permulations = list(itertools.product(*self.__parameter_samples))
-        # print(all_permulations)
 
-        # print('first pair')
-        # print(all_permulations[0])
 
-        #Now lets calculate the correlation coeffient sums for each set of parameters.
-        correlation_sums = [0] * len(all_permulations)
+    #Find the "top_n best paramter sets from the posterior"
+    def find_best_parameter_sets(self, SHOW_TOP_CORRELATION=True):
+                 
+        #Make sure the target is generated.
+        self.generate_target_from_model()
+
+        #sort all the paramter samples based on performance (cosine correlation.)
         
-        for index,parameter_set in enumerate(all_permulations):
-            pairs = itertools.combinations(parameter_set,2)
-            
-            num_combinations = 0
-            for (a,b) in pairs:
-                correlation_sums[index] += pearsonr(a,b)[0]
-                num_combinations += 1
+        print('Generating sample performance for %d samples' % self.NUM_SAMPLES)
+        parameter_ranking = []
+        for pset in self.__parameter_samples:
+            parameter_ranking.append((self.compute_correlation_for_parameter_set(pset), pset))
+        
+        #Now sort the parameter sets.
+        parameter_ranking.sort(key = lambda x:x[0], reverse=True)
 
-        self.__found_parameters = []
-
-        for _ in range(self.__top_n):
-            #get the parameter set with the highest total score.
-            closest_match = max(correlation_sums)
-            closest_match_index = correlation_sums.index(closest_match)
-            best_set = all_permulations[closest_match_index]
-            del correlation_sums[closest_match_index]
-
-            self.__final_parameter_matching_ratio = closest_match / num_combinations if num_combinations != 0 else 1
-
-            if SHOW_BEST_SET:
-                print('Best parameter set found.')
-                print(best_set)
-                print(self.__final_parameter_matching_ratio)
-
-            num_parameters = len(best_set[0])
-            #Return the average of each value in all parameter sets.
-            final = np.zeros(num_parameters)
-
-            for index in range(num_parameters):
-                for p_set in best_set:
-                    final[index] += p_set[index]
-                final[index] /= len(best_set)
-
-            final = list(final)
-            self.__found_parameters.append(final)
-
-        return final[0]
+        #Now get the top_n samples.
+        self.__found_parameters_correlation = [elem[0] for elem in parameter_ranking[:self.__top_n]]
+        self.__found_parameters = [elem[1] for elem in parameter_ranking[:self.__top_n]]
+        
+        if SHOW_TOP_CORRELATION:
+            print('Top sample correlation performance: ', self.__found_parameters_correlation)
 
     #Compare the found solution to the model using the target cell.
     #Takes 2 parameters:
@@ -297,7 +231,6 @@ class CellTuner:
             fig.savefig(save_dir,bbox_inches='tight')
 
     def generate_target_from_model(self):
-
         #Find the target voltage traces.
         self.__target_responses = []
         for i_inj in self.__current_injections:
@@ -339,23 +272,5 @@ class CellTuner:
     #Compare the best found solution to the target voltage trace and return the error.
     #This returns the average cosine similiarity between all found and target voltage traces.
     def get_best_trace_error(self):
-        #generate the found voltage responses.
-        found_responses = []
-        for i_inj in self.__current_injections:
-            self.__optimizer.set_simulation_params(sim_run_time=self.__sim_run_time, delay=self.__delay, inj_time=self.__inj_time, v_init=self.__v_init, i_inj=i_inj)
-            self.__optimizer.simulation_wrapper(self.__found_parameters[0])
-            found_responses.append(np.copy(self.__to_optimize.get_potential_as_numpy()))
-        
-        #Make sure the target is generated.
-        self.generate_target_from_model()
+        return 1.0 - self.compute_correlation_for_parameter_set(self.__found_parameters[0])
 
-        #Compute average cosine similarity accross current injections.
-        num_injections = len(self.__current_injections)
-        mean_similarity = 0
-        for i in range(num_injections):
-            mean_similarity += np.dot(found_responses[i], self.__target_responses[i]) / (np.linalg.norm(found_responses[i]) * np.linalg.norm(self.__target_responses[i]))
-        mean_similarity /= num_injections
-        
-        return 1.0 - mean_similarity
-
-    # def generate_posterior_plots(self, top_n=1):
