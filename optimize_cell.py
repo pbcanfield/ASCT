@@ -337,7 +337,37 @@ if __name__ == '__main__':
     optimization_parameters = config_data['optimization_parameters']
 
 
-    tune_bounded_by_threshold(current_injections=optimization_parameters['current_injections'], 
+    # tune_bounded_by_threshold(current_injections=optimization_parameters['current_injections'], 
+    #                    low=optimization_parameters['lows'],
+    #                    high=optimization_parameters['highs'],
+    #                    parameter_list=optimization_parameters['parameters'],
+    #                    num_simulations=settings['num_simulations'],
+    #                    num_rounds = settings['num_rounds'],
+    #                    features = settings['features'],
+    #                    sim_run_time=run['tstop'],
+    #                    delay=run['delay'],
+    #                    inj_time=run['duration'],
+    #                    v_init=conditions['v_init'],
+    #                    spike_height=settings['spike_threshold'],
+    #                    spike_adaptation=settings['spike_adaptation'],
+    #                    template_name=manifest['template_name'],
+    #                    target_template_name=manifest['target_template_name'],
+    #                    target_template_dir=manifest['target_template_dir'],
+    #                    template_dir=manifest['template_dir'],
+    #                    modfiles_dir=manifest['modfiles_dir'] if 'modfiles_dir' in manifest else None,
+    #                    ground_truth=optimization_parameters['ground_truth'],
+    #                    threshold_sample_size=settings['threshold_sample_size'],
+    #                    workers=settings['workers'],
+    #                    max_rounds=settings['max_iterations'],
+    #                    matching_threshold=settings['matching_threshold'],
+    #                    display=args.g,
+    #                    save_dir=args.save_dir,
+    #                    result_threshold=args.n,
+    #                    architecture=manifest['architecture'],
+    #                    log=args.l,
+    #                    parse_args=args.c)
+
+    tune_with_template(current_injections=optimization_parameters['current_injections'], 
                        low=optimization_parameters['lows'],
                        high=optimization_parameters['highs'],
                        parameter_list=optimization_parameters['parameters'],
@@ -358,14 +388,9 @@ if __name__ == '__main__':
                        ground_truth=optimization_parameters['ground_truth'],
                        threshold_sample_size=settings['threshold_sample_size'],
                        workers=settings['workers'],
-                       max_rounds=settings['max_iterations'],
-                       matching_threshold=settings['matching_threshold'],
                        display=args.g,
                        save_dir=args.save_dir,
                        result_threshold=args.n,
                        architecture=manifest['architecture'],
-                       log=args.l,
                        parse_args=args.c)
-
-    
     

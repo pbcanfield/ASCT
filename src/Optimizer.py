@@ -26,6 +26,8 @@ class Optimizer():
         self.__cell = cell #The cell object.
         self.summary_funct = summary_funct
 
+        self.__summary = summary_funct != None
+
         #A dictionary which stores the summary stat function aditional parameters if they are 
         #needed.
         self.summary_stat_args = args
@@ -145,20 +147,25 @@ class Optimizer():
         #If the summary stat funct is user defined, then give the user the whole cell for their
         #summary stats function. Otherwise, pass in a tensor of just the voltage trace data
         # (for the CNN).
-        if self.summary_stat_args != () and self.summary_stat_kwargs != {}:
-            return self.summary_funct(self.__cell,*self.summary_stat_args, **self.summary_stat_kwargs)
+       
         
-        if self.summary_stat_args != ():
-            return self.summary_funct(self.__cell,*self.summary_stat_args)
-
-        if self.summary_stat_kwargs != {}:
-            return self.summary_funct(self.__cell,*(), **self.summary_stat_kwargs)
-        
+        if self.__summary:
+            return self.summary_funct(self.__cell, *self.summary_stat_args, **self.summary_stat_kwargs)
         
         data = torch.from_numpy(self.__cell.get_potential_as_numpy()).float()
         return data
 
-    def multi_channel_wrapper(self, *args, **kwargs):
+    def multi_channel_wrapper_summary(self, *args, **kwargs):
+        data = np.array([])
+
+        for current_injection in self.__current_injections:
+            self.set_simulation_params(i_inj=current_injection)
+            r = self.simulation_wrapper(*args, **kwargs)
+            data = np.concatenate((data,r), axis=None)
+        
+        return data
+
+    def multi_channel_wrapper_CNN(self, *args, **kwargs):
         data = torch.empty((len(self.__current_injections),1024))
         
         for index, current_injection in enumerate(self.__current_injections):
@@ -179,13 +186,16 @@ class Optimizer():
     #      distribution than just one big round.
     #   4) The CNN which is used to learn the summary stats, if this is set to None no embedding net
     #      exists and this step can be skipped.
-    def run_inference_multiround(self, num_simulations=1000, num_rounds = 1, workers=1):
+    def run_inference_multiround(self, target_environ, num_simulations=1000, num_rounds = 1, workers=1):
         
+
         #Get stuff ready for sbi.
-        simulator, self.__prior = prepare_for_sbi(self.simulation_wrapper, self.__prior)
+        simulator, self.__prior = prepare_for_sbi(self.multi_channel_wrapper_summary, self.__prior)
         inference = SNPE(prior=self.__prior)
         
         proposal = self.__prior
+
+        self.__observed_stats = target_environ.multi_channel_wrapper_summary()
 
         for _ in range(num_rounds):
             theta, x = simulate_for_sbi(simulator, proposal, num_simulations=num_simulations,num_workers=workers)
@@ -196,8 +206,9 @@ class Optimizer():
         
         
     def run_inference_learned_stats(self, embedding_net, target_environ, num_simulations=1000, num_rounds=1, workers=1):        
+        
         #Get stuff ready for sbi.
-        self.__simulator, self.__prior = prepare_for_sbi(self.multi_channel_wrapper, self.__prior)
+        self.__simulator, self.__prior = prepare_for_sbi(self.multi_channel_wrapper_CNN, self.__prior)
         
         neural_posterior = utils.posterior_nn(model='maf', 
                                                 embedding_net=embedding_net,
@@ -207,7 +218,7 @@ class Optimizer():
 
         proposal = self.__prior
 
-        self.__observed_stats = target_environ.multi_channel_wrapper().flatten()
+        self.__observed_stats = target_environ.multi_channel_wrapper_CNN().flatten()
 
         for _ in range(num_rounds):
             #Do the first round so we train the weights for the CNN.
