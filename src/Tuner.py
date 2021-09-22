@@ -34,7 +34,7 @@ import math
 
 
 class CellTuner:
-    def __init__(self, current_injections, modfiles_dir, template_dir, template_name, optimization_parameters, parameter_range, architecture='summary', summary_funct = None, features=8,*args, **kwargs):
+    def __init__(self, modfiles_dir, template_dir, template_name, current_injections, optimization_parameters, parameter_range, architecture='summary', summary_funct = None, features=8,*args, **kwargs):
         
         #Store the current injection list and the spike threshold.
         self.__current_injections = current_injections
@@ -61,7 +61,7 @@ class CellTuner:
 
         #Set up the cell and the optimizer. This will be responsible for optimizing the given cell
         #at each current injection value.
-        self.__to_optimize = Cell(template_dir, template_name, summary_funct)
+        self.__to_optimize = Cell(template_dir, template_name)
 
         self.__optimizer = Optimizer(self.__to_optimize, optimization_parameters, parameter_range, summary_funct, *args, **kwargs)
 
@@ -73,11 +73,6 @@ class CellTuner:
         out = self.__embedding_net(input)
         return out
     
-    #Sets the target statistics to be matched. This should be a list of target statistics
-    #where each entry matches a given current injection level.
-    def add_target_statistics(self, target_stats):
-        self.__target_stats = target_stats
-    
     #Set the simulation parameters.
     def set_simulation_params(self, sim_run_time = 1500, delay = 400, inj_time = 500, v_init = -75):
         self.__sim_run_time = sim_run_time
@@ -88,7 +83,7 @@ class CellTuner:
     #Calculate the target summary statistics based on a provided HOC model.
     #If CNN is activated and not yet trained, train it.
     def calculate_target_stats_from_model(self, template_dir, template_name):    
-        self.__target_cell = Cell(template_dir, template_name, self.__optimizer.summary_funct)
+        self.__target_cell = Cell(template_dir, template_name)
         
         #Create a temporary optimizer which is used to get the target
         #statistics from the target cell at each current injection.
@@ -100,7 +95,32 @@ class CellTuner:
                                       **self.__optimizer.summary_stat_kwargs)
 
         self.__sim_environ.set_current_injection_list(self.__current_injections)
-    
+        
+        if self.__embedding_net == None:
+            self.__optimizer.set_observed_stats(self.__sim_environ.multi_channel_wrapper_summary())
+        else:
+            self.__optimizer.set_observed_stats(self.__sim_environ.multi_channel_wrapper_CNN().flatten())
+
+    #Given the current injection responses directly, save it.
+    def set_target_responses(self, target_responses):
+        self.__time = np.linspace(0,self.__sim_run_time * 1e-3,1024)
+        self.__target_responses = target_responses
+
+    #Generates the target statitcs from the data. Target responses must be set.
+    def calculate_target_stats_from_data(self):
+        if self.__embedding_net == None:
+            
+            #We just need to get the statistics for each current injection.
+            stats = np.array([])
+
+            for trace in self.__target_responses:
+                stat = self.__optimizer.summary_funct(trace, self.__time, *self.__optimizer.summary_stat_args, **self.__optimizer.summary_stat_kwargs)
+                stats = np.concatenate((stats, stat), axis=0)
+
+            self.__optimizer.set_observed_stats(stats)
+        else:
+            self.__optimizer.set_observed_stats(self.__target_responses)
+
     #Wrapper function which automatically chooses which function to call based on
     #set parameters.
     def optimize_current_injections(self, num_simulations = 500, num_rounds=1, inference_workers=1 ,sample_threshold = 10):
@@ -117,12 +137,12 @@ class CellTuner:
     
     def optimize_current_injections_cnn(self, num_simulations = 500, num_rounds = 1, inference_workers=1):        
         self.__optimizer.set_current_injection_list(self.__current_injections)
-        self.__optimizer.run_inference_learned_stats(self.__embedding_net, self.__sim_environ, num_simulations=num_simulations, num_rounds=num_rounds, workers=inference_workers)
+        self.__optimizer.run_inference_learned_stats(self.__embedding_net, num_simulations=num_simulations, num_rounds=num_rounds, workers=inference_workers)
         self.__parameter_samples = self.__optimizer.get_samples(-1, sample_threshold=self.NUM_SAMPLES)
 
     def optimize_current_injections_summary(self, num_simulations = 500, num_rounds=1, inference_workers=1):
         self.__optimizer.set_current_injection_list(self.__current_injections)
-        self.__optimizer.run_inference_multiround(self.__sim_environ, num_simulations=num_simulations, workers=inference_workers, num_rounds=num_rounds)
+        self.__optimizer.run_inference_multiround(num_simulations=num_simulations, workers=inference_workers, num_rounds=num_rounds)
         self.__parameter_samples = self.__optimizer.get_samples(-1, sample_threshold=self.NUM_SAMPLES)
             
 
@@ -156,13 +176,12 @@ class CellTuner:
     #i.e. all parameter sets from out of the top 'x' are treated equally when in reality the
     #first ones are really the best solutions, this could be taken into account in a better
     #function
-
-
     #Find the "top_n best paramter sets from the posterior"
     def find_best_parameter_sets(self, SHOW_TOP_CORRELATION=True):
                  
-        #Make sure the target is generated.
-        self.generate_target_from_model()
+        #Make sure the target is generated if it has not been set.
+        if self.__target_responses == [] or self.__target_responses == None:
+            self.generate_target_from_model()
 
         #sort all the paramter samples based on performance (cosine correlation.)
         
@@ -189,8 +208,6 @@ class CellTuner:
     #      save the image.
     def compare_found_solution_to_target(self, top_n=1, display=False, save_dir=None):
         #Get the time vector.
-        time = self.__target_cell.get_time_as_numpy()
-
         #create a gid of subplots to display the results. the grid is NxN where
         #n = ceil(sqrt(n))
         n_plots = math.ceil(math.sqrt(top_n))
@@ -211,13 +228,13 @@ class CellTuner:
             if current_injection_length > 1:
                 for index in range(current_injection_length):
                     ax = plt.Subplot(fig,inner[index])
-                    ax.plot(time, self.__target_responses[index], label='Target')
-                    ax.plot(time, found_responses[index], label='Found')
+                    ax.plot(self.__time, self.__target_responses[index], label='Target')
+                    ax.plot(self.__time, found_responses[index], label='Found')
                     fig.add_subplot(ax)
             else:
                 ax = plt.Subplot(fig,inner[0])
-                ax.plot(time, self.__target_responses[0], label='Target')
-                ax.plot(time, found_responses[0], label='Found')
+                ax.plot(self.__time, self.__target_responses[0], label='Target')
+                ax.plot(self.__time, found_responses[0], label='Found')
                 fig.add_subplot(ax)
 
         handles, labels = plt.gca().get_legend_handles_labels()
@@ -239,7 +256,7 @@ class CellTuner:
             self.__target_responses.append(np.copy(self.__target_cell.get_potential_as_numpy()))
 
         #Store this for other functions which need the time vector.
-        self.__time = self.__target_cell.get_time_as_numpy()
+        self.__time = self.__to_optimize.get_time_as_numpy()
 
     #def generate_found_FI_curve(self, display=False, save_dir=None):
 

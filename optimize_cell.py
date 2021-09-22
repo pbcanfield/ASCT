@@ -1,302 +1,89 @@
-import os
+import numpy as np
+from numpy.core.fromnumeric import reshape
 from src.Tuner import CellTuner
 import argparse
 import json
-from scipy.signal import find_peaks
-import numpy as np
+import csv
 from datetime import datetime
-import threading
-import time
+import importlib
 
-#Important statistcs for an adapting cell
-#Resting membrane potential.
-#Average spike peak?
-#Average trough value?
-#Adaptation ratio: This is defined as a_r = (f_max - f_steadystate)/f_max
-#                  where f_max is the maximum instantaneous frequency  (first spike probably) 
-#                  f_steadystate is the steady state instaneous frequency (last spike probably)
-#Adapation speed: Some sort of metric which captures how fast it adapts.
-#Number of spikes. 
-def calculate_adapting_statistics(cell,sim_variables=(), spike_height_threshold=0, spike_adaptation_threshold=0.99, DEBUG=False):
-    sim_run_time = sim_variables[0]
-    delay = sim_variables[1]
-    inj_time = sim_variables[2]
-    
-    trace = cell.get_potential_as_numpy()
-    time = cell.get_time_as_numpy()
-    
-    #Resting Membrane Potential.
+def tune_with_template(config_data, *args, **kwargs):
 
-    #We need to calculate the resting membrane potential,
-    #to do this we need to find a part of the simmulation where it is at rest.
-    #preferably we get this from the end after the current injection, however if
-    #the current injection ends at the end of the simulation then we can take it from the
-    #beginning with some padding.
-    padding = 50
-    if sim_run_time == delay + inj_time:
-        start_injection = np.where(np.isclose(time, sim_run_time))[0][0]
-        start_point = np.where(np.isclose(time, sim_run_time - padding))[0][0]
-        resting = np.mean(trace[start_point:start_injection])
-    else:
-        end_injection = np.where(np.isclose(time,delay + inj_time,0.99))[0][0]
-        end_point = len(time) - 1
-        resting = np.mean(trace[end_injection:end_point])
-    
-    #Average spike and trough voltage.
-    spike_times = np.asarray(find_peaks(trace,height=spike_height_threshold)[0])
-    
-    #Take care of the case where nothing spikes.
-    if len(spike_times) == 0:
-        return np.concatenate((resting, resting, resting, 0, 0, 0),axis=None) 
 
-    average_peak = np.mean(np.take(trace, spike_times))
-    average_trough = np.mean(np.take(trace, np.asarray(find_peaks(-trace,height=spike_height_threshold)[0])))
+    manifest = config_data['manifest']
+    conditions = config_data['conditions']
+    run = config_data['run']
+    settings = config_data['optimization_settings']
+    parameters = config_data['optimization_parameters']
+    summary = config_data['summary']
 
-    #Take care of the case where there is only one spike.
-    if len(spike_times) == 1:
-        return np.concatenate((resting, average_peak, average_trough, 0, 1, 1),axis=None) 
+    #Lets load the summary function into memory.
+    summary['summary_file'] = summary['summary_file'].replace('.py','').replace('/','.')
 
-    #Adaptation ratio        
-    f_max = 1.0 / (spike_times[1] - spike_times[0])
-    f_min = 1.0 / (spike_times[-1] - spike_times[-2])
+    summary_module = importlib.import_module(summary['summary_file'])
+    summary_function = getattr(summary_module, summary['function_name'])
 
-    adaptation_index = (f_max - f_min) / f_max
+    #Now remove the file and function name from the dictionary.
+    del summary['summary_file']
+    del summary['function_name']
 
-    #Adaptation speed.
-    instantaneous_freq = 1.0 / np.diff(spike_times)
-    adaptation_speed = np.where(np.isclose(instantaneous_freq, f_min, spike_adaptation_threshold))[0][0]
-
-    #Number of spikes
-    spike_num = len(spike_times)    
-    
-    if DEBUG:
-        print('Calculated resting membrane potential: %f' % resting)
-        print('Average peak voltage: %f' % average_peak)
-        print('Average trough voltage: %f' % average_trough)
-        print('Adaptation ratio: %f' % adaptation_index)
-        print('Adaptation speed: %d' % adaptation_speed)
-        print('Number of spikes: %d' % spike_num)
-
-    return np.concatenate((resting, average_peak, average_trough, adaptation_index, adaptation_speed, spike_num), axis=None)
-
-def tune_with_template(current_injections, low, high, 
-                       parameter_list, num_simulations, num_rounds, result_threshold, features,
-                       sim_run_time, delay, inj_time, v_init, spike_height, spike_adaptation,
-                       template_name, target_template_name,
-                       target_template_dir, template_dir, modfiles_dir, ground_truth, 
-                       threshold_sample_size, workers, display,save_dir, architecture,
-                       parse_args):
-
-    if not parse_args:
+    if not kwargs['c_mod']:
         modfiles_dir = None
     
-    tuner = CellTuner(current_injections, 
-                      modfiles_dir, 
-                      template_dir, 
-                      template_name, 
-                      parameter_list, 
-                      (low, high), 
-                      architecture=architecture,
-                      summary_funct=calculate_adapting_statistics,
-                      features=features,
-                      sim_variables=(600,50,500), 
-                      spike_height_threshold=spike_height,
-                      spike_adaptation_threshold=spike_adaptation)
+    tuner = CellTuner( 
+                      manifest['modfiles_dir'], 
+                      manifest['template_dir'], 
+                      manifest['template_name'],
+                      parameters['current_injections'],
+                      parameters['parameters'], 
+                      (parameters['lows'], parameters['highs']), 
+                      architecture=manifest['architecture'],
+                      summary_funct=summary_function,
+                      features=settings['features'],
+                      kwargs=summary)       #Pass in the summary function variables as kwargs
 
-    tuner.set_simulation_params(sim_run_time=sim_run_time, delay=delay,inj_time=inj_time,v_init=v_init)
-    tuner.calculate_target_stats_from_model(target_template_dir, target_template_name)
+    tuner.set_simulation_params(sim_run_time=run['tstop'], delay=run['delay'],inj_time=run['duration'],v_init=conditions['v_init'])
     
-
-    #tuner.extract_tonic_stats_from_trace([[(150,250)],[(100,200),(200,300)],[(75,300)]])
-
-    tuner.optimize_current_injections(num_simulations=num_simulations,inference_workers=workers, sample_threshold=threshold_sample_size, num_rounds=num_rounds)
-    tuner.find_best_parameter_sets()
-    
-    print('The optimizer found the following parameter set:')
-    print(tuner.get_optimial_parameter_sets(result_threshold))
-
-    print('Relative Percent Error from ground truth:')
-    print(tuner.compare_found_parameters_to_ground_truth(ground_truth,result_threshold))
-
-    #print('The matching ratio is: %f (closer to 1 is better)' % tuner.get_matching_ratio())
-
-    tuner.generate_target_from_model()
-    tuner.compare_found_solution_to_target(result_threshold,display,save_dir)
-
-    
-
-def tune_bounded_by_threshold(current_injections, low, high, 
-                              parameter_list, num_simulations, num_rounds, result_threshold, features,
-                              sim_run_time, delay, inj_time, v_init, spike_height, spike_adaptation,
-                              template_name, target_template_name,
-                              target_template_dir, template_dir, modfiles_dir, ground_truth, 
-                              threshold_sample_size, workers, display,save_dir, architecture,
-                              parse_args, log, max_rounds = 1, matching_threshold = 0.99):
-
-    start = time.time()
-    log_name = 'tuning_log_%s.log' % datetime.now().strftime("%m_%d_%Y|%H:%M:%S")
-    file = None
-    if log:
-        if not os.path.isdir('tuning_logs'):
-            os.mkdir('tuning_logs')
-
-        file = open('tuning_logs/%s' % log_name, 'w')
-
-    if not parse_args:
-        modfiles_dir = None
-
-    target_error = 1.0 - matching_threshold
-
-    found_solution = False
-    lock = threading.Lock()
-    solution = None
-    solution_error = float('inf')
-
-    def run_batch_worker(current_injections, low, high, 
-                              parameter_list, num_simulations, num_rounds, features,
-                              sim_run_time, delay, inj_time, v_init, spike_height, spike_adaptation,
-                              template_name, target_template_name,
-                              target_template_dir, template_dir, modfiles_dir, 
-                              threshold_sample_size, architecture,
-                              log, max_rounds = 1):
+    #We need to check if we are validating against a ground truth model or if we are tuning from input data.
+    if manifest['job_type'] == 'ground_truth':
+        tuner.calculate_target_stats_from_model(manifest['target_template_dir'], manifest['target_template_name'])
         
-        nonlocal found_solution
-        nonlocal lock
-        nonlocal solution_error
-        nonlocal solution
+        tuner.optimize_current_injections(num_simulations=settings['num_simulations'],
+                                          inference_workers=settings['workers'], 
+                                          sample_threshold=kwargs['result_threshold'], 
+                                          num_rounds=settings['num_rounds'])
+
+        tuner.find_best_parameter_sets()
         
-        count_rounds = 0
-        best_tuner_error = float('inf')
-        best = None
-        for _ in range(max_rounds):
-            count_rounds += 1
+        print('The optimizer found the following parameter set:')
+        print(tuner.get_optimial_parameter_sets(kwargs['result_threshold']))
 
-            #initialize the tuner.
-            tuner = CellTuner(current_injections, 
-                        modfiles_dir, 
-                        template_dir, 
-                        template_name, 
-                        parameter_list, 
-                        (low, high), 
-                        architecture=architecture,
-                        summary_funct=calculate_adapting_statistics,
-                        features=features,
-                        sim_variables=(600,50,500), 
-                        spike_height_threshold=spike_height,
-                        spike_adaptation_threshold=spike_adaptation)
-            
-            tuner.set_simulation_params(sim_run_time=sim_run_time, delay=delay,inj_time=inj_time,v_init=v_init)
-            tuner.calculate_target_stats_from_model(target_template_dir, target_template_name)
+        print('Relative Percent Error from ground truth:')
+        print(tuner.compare_found_parameters_to_ground_truth(parameters['ground_truth'],kwargs['result_threshold']))
 
-            #Find the optimal paramter set.
-            tuner.optimize_current_injections(num_simulations=num_simulations, sample_threshold=threshold_sample_size, num_rounds=num_rounds)
-            tuner.find_best_parameter_sets()
+        #print('The matching ratio is: %f (closer to 1 is better)' % tuner.get_matching_ratio())
 
-            #Now we get the error of the target trace.
-            error = tuner.get_best_trace_error()
-            text = '\n--- Iteration %d Thread: %s, Correlation %f ---\n' % (count_rounds, threading.current_thread().getName(), 1.0 - error)
-            
-            if error < best_tuner_error:
-                best_tuner_error = error
-                best = tuner
-
-            #check if we've found a result that matches our threshold yet.
-            if error < target_error:
-                lock.acquire()
-                found_solution = True
-                lock.release()
-                break
-
-            
-            lock.acquire()
-            #Check if we have already found a solution.
-            if found_solution:
-                break
-            print(text)
-            if log:
-                file.write(text)
-            lock.release()
-
-        #Add the best found solution to the solution list.
-        lock.acquire()
-        if best_tuner_error < solution_error:
-            solution_error = best_tuner_error
-            solution = best
-        lock.release()
-
-    threads = []
+        tuner.generate_target_from_model()
+        tuner.compare_found_solution_to_target(kwargs['result_threshold'],kwargs['display'],kwargs['save_dir'])
     
-    #Calculate the workload of each thread.
-    extra = int(max_rounds % workers)
-    workload = int((max_rounds - extra) / workers)
-    #The remainder of the threads should just do a workload of work and not the extra work.
-    for _ in range(workers):
-        if extra != 0 and _ == 0:
-            #Spawn off the extra stuff on the first thread if needed.
-            threads.append(threading.Thread(target=run_batch_worker, args= (current_injections, low, high, 
-                                                                            parameter_list, num_simulations, num_rounds, features,
-                                                                            sim_run_time, delay, inj_time, v_init, spike_height, spike_adaptation,
-                                                                            template_name, target_template_name,
-                                                                            target_template_dir, template_dir, modfiles_dir, 
-                                                                            threshold_sample_size, architecture,
-                                                                            log, workload+extra)))
-        else:    
-            threads.append(threading.Thread(target=run_batch_worker, args= (current_injections, low, high, 
-                                                                            parameter_list, num_simulations, num_rounds, features,
-                                                                            sim_run_time, delay, inj_time, v_init, spike_height, spike_adaptation,
-                                                                            template_name, target_template_name,
-                                                                            target_template_dir, template_dir, modfiles_dir, 
-                                                                            threshold_sample_size, architecture,
-                                                                            log, workload)))
+    elif manifest['job_type'] == 'from_data':
+        #Load in the input_data
+        responses = load_current_injections_from_csv(manifest['input_data'])
+        tuner.set_target_responses(responses)
+
+        tuner.calculate_target_stats_from_data()
         
-        #Start each thread.
-        threads[-1].start()
-    
-    #Now wait for all the threads.
-    for thread in threads:
-        thread.join()
-    
-    elapsed_time = time.time() - start
+        tuner.optimize_current_injections(num_simulations=settings['num_simulations'],
+                                          inference_workers=settings['workers'], 
+                                          sample_threshold=kwargs['result_threshold'], 
+                                          num_rounds=settings['num_rounds'])
 
-    text = ''
-    if found_solution:
-        text = 'A parameter set which has a correlation greater than %f was found .' % (matching_threshold)
-    else:
-        text = 'A parameter set was not found which has a correlation greater than %f in %d iterations, using best found (%f) instead.' % (matching_threshold, max_rounds, 1.0-solution_error)
-    
-    print(text)
-    if log:
-        file.write(text)
+        tuner.find_best_parameter_sets()
+        
+        print('The optimizer found the following parameter set:')
+        print(tuner.get_optimial_parameter_sets(kwargs['result_threshold']))
 
-    text = 'The optimizer found the following parameter set(s):' 
-    output = str(solution.get_optimial_parameter_sets(result_threshold)) + '\n'
-
-    print(text)
-    print(output)
-    if log:
-        file.write(text)
-        file.write(output)
-    
-    text = 'Relative Percent Error from ground truth:'
-    output = str(solution.compare_found_parameters_to_ground_truth(ground_truth,result_threshold)) + '\n'
-    
-    print(text)
-    print(output)
-    if log:
-        file.write(text)
-        file.write(output)
-
-    
-
-    solution.generate_target_from_model()
-    solution.compare_found_solution_to_target(result_threshold,display,save_dir)
-
-
-    text = 'Elapsed Time: %fs' % elapsed_time
-    print(text)
-    if log:
-        file.write(text)
-        file.close()
+        tuner.compare_found_solution_to_target(kwargs['result_threshold'],kwargs['display'],kwargs['save_dir'])
 
 def parse_config(config_directory):
     data = None
@@ -310,12 +97,21 @@ def parse_config(config_directory):
 
     return data
 
-if __name__ == '__main__':
-    #test_optimizer('CA3PyramidalCell', template_dir='cells/CA3Cell_Qian/CA3.hoc')
-    #tune_with_template('CA3PyramidalCell', template_dir='cells/CA3Cell_Qian/CA3.hoc')
+def load_current_injections_from_csv(file_dir):
+    file = open(file_dir, 'r')
+    csv_file =  csv.reader(file,delimiter=',')
 
+    responses = [[] for _ in range(len(next(csv_file)))]
+    file.seek(0)
+    for row in csv_file:
+        for i, column in enumerate(row):
+            responses[i].append(column)
     
+    responses = [np.array(e,dtype=float) for e in responses]
+    return responses
     
+
+if __name__ == '__main__':
     argument_parser = argparse.ArgumentParser(description='Uses SBI to find optimal parameter sets for biologically realistic neuron simulations.')
 
     argument_parser.add_argument('config_dir', type=str, help='the optimization config file directory')
@@ -329,68 +125,5 @@ if __name__ == '__main__':
 
     config_data = parse_config(args.config_dir)
 
-    #Now lets extract the data.
-    manifest = config_data['manifest']
-    conditions = config_data['conditions']
-    run = config_data['run']
-    settings = config_data['optimization_settings']
-    optimization_parameters = config_data['optimization_parameters']
-
-
-    # tune_bounded_by_threshold(current_injections=optimization_parameters['current_injections'], 
-    #                    low=optimization_parameters['lows'],
-    #                    high=optimization_parameters['highs'],
-    #                    parameter_list=optimization_parameters['parameters'],
-    #                    num_simulations=settings['num_simulations'],
-    #                    num_rounds = settings['num_rounds'],
-    #                    features = settings['features'],
-    #                    sim_run_time=run['tstop'],
-    #                    delay=run['delay'],
-    #                    inj_time=run['duration'],
-    #                    v_init=conditions['v_init'],
-    #                    spike_height=settings['spike_threshold'],
-    #                    spike_adaptation=settings['spike_adaptation'],
-    #                    template_name=manifest['template_name'],
-    #                    target_template_name=manifest['target_template_name'],
-    #                    target_template_dir=manifest['target_template_dir'],
-    #                    template_dir=manifest['template_dir'],
-    #                    modfiles_dir=manifest['modfiles_dir'] if 'modfiles_dir' in manifest else None,
-    #                    ground_truth=optimization_parameters['ground_truth'],
-    #                    threshold_sample_size=settings['threshold_sample_size'],
-    #                    workers=settings['workers'],
-    #                    max_rounds=settings['max_iterations'],
-    #                    matching_threshold=settings['matching_threshold'],
-    #                    display=args.g,
-    #                    save_dir=args.save_dir,
-    #                    result_threshold=args.n,
-    #                    architecture=manifest['architecture'],
-    #                    log=args.l,
-    #                    parse_args=args.c)
-
-    tune_with_template(current_injections=optimization_parameters['current_injections'], 
-                       low=optimization_parameters['lows'],
-                       high=optimization_parameters['highs'],
-                       parameter_list=optimization_parameters['parameters'],
-                       num_simulations=settings['num_simulations'],
-                       num_rounds = settings['num_rounds'],
-                       features = settings['features'],
-                       sim_run_time=run['tstop'],
-                       delay=run['delay'],
-                       inj_time=run['duration'],
-                       v_init=conditions['v_init'],
-                       spike_height=settings['spike_threshold'],
-                       spike_adaptation=settings['spike_adaptation'],
-                       template_name=manifest['template_name'],
-                       target_template_name=manifest['target_template_name'],
-                       target_template_dir=manifest['target_template_dir'],
-                       template_dir=manifest['template_dir'],
-                       modfiles_dir=manifest['modfiles_dir'] if 'modfiles_dir' in manifest else None,
-                       ground_truth=optimization_parameters['ground_truth'],
-                       threshold_sample_size=settings['threshold_sample_size'],
-                       workers=settings['workers'],
-                       display=args.g,
-                       save_dir=args.save_dir,
-                       result_threshold=args.n,
-                       architecture=manifest['architecture'],
-                       parse_args=args.c)
+    tune_with_template(config_data, save_dir=args.save_dir, display=args.g, result_threshold=args.n, c_mod=args.c, log=args.l)
     

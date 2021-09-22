@@ -30,8 +30,8 @@ class Optimizer():
 
         #A dictionary which stores the summary stat function aditional parameters if they are 
         #needed.
-        self.summary_stat_args = args
-        self.summary_stat_kwargs = kwargs
+        self.summary_stat_args = ()
+        self.summary_stat_kwargs = kwargs['kwargs'] if 'kwargs' in kwargs else kwargs
 
         #Set the default simulation parameters.
         self.set_simulation_params()
@@ -150,7 +150,9 @@ class Optimizer():
        
         
         if self.__summary:
-            return self.summary_funct(self.__cell, *self.summary_stat_args, **self.summary_stat_kwargs)
+            voltage = self.__cell.get_potential_as_numpy()
+            time    = self.__cell.get_time_as_numpy() 
+            return self.summary_funct(voltage, time, *self.summary_stat_args, **self.summary_stat_kwargs)
         
         data = torch.from_numpy(self.__cell.get_potential_as_numpy()).float()
         return data
@@ -160,8 +162,7 @@ class Optimizer():
 
         for current_injection in self.__current_injections:
             self.set_simulation_params(i_inj=current_injection)
-            r = self.simulation_wrapper(*args, **kwargs)
-            data = np.concatenate((data,r), axis=None)
+            data = np.concatenate((data,self.simulation_wrapper(*args, **kwargs)), axis=None)
         
         return data
 
@@ -173,6 +174,9 @@ class Optimizer():
             data[index] = self.simulation_wrapper(*args, **kwargs)
         
         return data
+
+    def set_observed_stats(self, stats):
+        self.__observed_stats = stats
 
     #This function builds simulation data ONLINE.
     #This is what uses SBI to infer the parameters with the above simulation wrapper.
@@ -186,26 +190,29 @@ class Optimizer():
     #      distribution than just one big round.
     #   4) The CNN which is used to learn the summary stats, if this is set to None no embedding net
     #      exists and this step can be skipped.
-    def run_inference_multiround(self, target_environ, num_simulations=1000, num_rounds = 1, workers=1):
-        
-
+    def run_inference_multiround(self, num_simulations=1000, num_rounds = 1, workers=1):
         #Get stuff ready for sbi.
         simulator, self.__prior = prepare_for_sbi(self.multi_channel_wrapper_summary, self.__prior)
-        inference = SNPE(prior=self.__prior)
+        self.__inference = SNPE(prior=self.__prior)
         
         proposal = self.__prior
 
-        self.__observed_stats = target_environ.multi_channel_wrapper_summary()
-
         for _ in range(num_rounds):
             theta, x = simulate_for_sbi(simulator, proposal, num_simulations=num_simulations,num_workers=workers)
-            density_estimator = inference.append_simulations(theta, x, proposal=proposal)
+            density_estimator = self.__inference.append_simulations(theta, x, proposal=proposal)
             density_estimator.train(show_train_summary=True)
-            self.__posterior.append(inference.build_posterior())
-            proposal = self.__posterior[-1].set_default_x(self.__observed_stats)
+
+            proposal = self.__inference.build_posterior()
+            self.__posterior.append(proposal)
+
+            #Set defualt x.
+            #Take maximum probability here. Potentially.
+            samples = self.__posterior[-1].sample((1000,), x=self.__observed_stats)
+            log_prob = self.__posterior[-1].log_prob(samples, x=self.__observed_stats, norm_posterior=False)
+            proposal = samples[np.argmax(log_prob)]
         
         
-    def run_inference_learned_stats(self, embedding_net, target_environ, num_simulations=1000, num_rounds=1, workers=1):        
+    def run_inference_learned_stats(self, embedding_net, num_simulations=1000, num_rounds=1, workers=1):        
         
         #Get stuff ready for sbi.
         self.__simulator, self.__prior = prepare_for_sbi(self.multi_channel_wrapper_CNN, self.__prior)
@@ -218,13 +225,11 @@ class Optimizer():
 
         proposal = self.__prior
 
-        self.__observed_stats = target_environ.multi_channel_wrapper_CNN().flatten()
-
         for _ in range(num_rounds):
             #Do the first round so we train the weights for the CNN.
             theta, x = simulate_for_sbi(self.__simulator, self.__prior, num_simulations=num_simulations,num_workers=workers)
             density_estimator = self.__inference.append_simulations(theta, x)
-            density_estimator.train(show_train_summary=True, learning_rate=0.001)
+            density_estimator.train(show_train_summary=True)
             proposal = self.__inference.build_posterior()
             self.__posterior.append(proposal)
 
