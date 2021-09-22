@@ -6,7 +6,7 @@ There are two options for using ASCT; You can run your single cell optimization 
 
 ## Running parameter inference.
 ### The CLI interface.
-ASCT is a CLI based tool which takes a configuration file and command line arguments as inputs. For basic usage, run the command ```python optimize_cell.py -h```. Which will prodce the following output:
+ASCT is a CLI based tool which takes a configuration file and command line arguments as inputs. For basic usage, run the command ```python optimize_cell.py -h```. Which will produce the following output:
 ```
 usage: optimize_cell.py [-h] [-g] [-c] [-l] [-n N] config_dir [save_dir]
 
@@ -28,7 +28,7 @@ optional arguments:
 From here the user has several options which they can specify depending on their individual needs.
 
 ### Configuration file setup.
-The only required argument for ASCT is a user defined json configuration file. This is a file which specifies all relevant information which is needed to infer the parameters a user is interested in. There are five subsections required in every configuration file for ASCT: ```manifest```, ```optimzation_settings```,```run```,```conditions```, and ```optimzation_parameters```. Each subsection has a variety of options which the user can set for a general run, some of which are required and some are conditional based on the user's job. Here is the general breakdown of a config file by section.
+The only required argument for ASCT is a user defined json configuration file. This is a file which specifies all relevant information which is needed to infer the parameters a user is interested in. There are five subsections required in every configuration file for ASCT: ```manifest```, ```optimzation_settings```,```run```,```conditions```, and ```optimzation_parameters```. Each subsection has a variety of options which the user can set for a general run, some of which are required, and some are conditional based on the user's job. Here is the general breakdown of a config file by section.
 #### ```"manifest"```
 * Required Settings:
     * ```"job_type"```: Specifies if a user wants to optimize parameters from provided current response information or if they would like to validate against a ground truth model. Can be set to either ```"ground_truth"``` or ```"from_data"``` respectively.
@@ -44,7 +44,7 @@ The only required argument for ASCT is a user defined json configuration file. T
         1. ```"input_data"```: The CSV file storing the current injection responses for the cell you wish to tune. The file should be comma-seperated where each column corresponds to a seperate current injection value. There should be **exactly 1024 data points** in each column and each data point should be a voltage (mV) corresponding to the membrane potential at each time step of the experiment.
 #### ```"summary"``` (Only required if ```"architecture"``` is set to ```"summary"``` in ```"manifest"```)
 * Required Settings:
-    * ```"summary_file"```: This is the file which specifies user defined summary statistics functions. Each function must be implmented by the user and must two [numpy](https://numpy.org/) arrays of length 1024 for the first two positional arguments. The first array stores the membrane voltage of a given cell and the second is the time vector.
+    * ```"summary_file"```: This is the file which specifies user defined summary statistics functions. Each function must be implemented by the user and must two [numpy](https://numpy.org/) arrays of length 1024 for the first two positional arguments. The first array stores the membrane voltage of a given cell and the second is the time vector.
     * ```"function_name"```: This is the name of the function to use in the provided file.
 * Conditional Settings: All other parameters in this section are conditional based on the function definition. They will be passed into the function as kwargs.
 #### ```"Run"``` (all time units are in ms)
@@ -52,21 +52,12 @@ The only required argument for ASCT is a user defined json configuration file. T
     * ```"tstop"```: The duration of each simulation.
     * ```"delay"```: The time before current injection is provided.
     * ```"duration"```: The length of the current injection
-
 #### ```"Conditions"``` (all voltage measurements are in mV)
 * Required Settings:
     * ```"v_init"```: The initial voltage of the simulation.
 #### ```"optimization_settings"``` 
 * Required Settings:
-    * ```"num_simulations"```: The number of samples to take within the prior dirstribution.
-    * ```"num_rounds"```: The number of rounds if using [multi-round inference](https://www.mackelab.org/sbi/tutorial/03_multiround_inference/).
-    * ```"workers"```: The number of workers to use for inference.
-* Conditional Settings:
-    * If ```"architecture"``` is set to ```"convolution"``` or ```"hybrid"```:
-        * ```"features"```: The number of features the CNN will learn.
-#### ```"optimization_settings"``` 
-* Required Settings:
-    * ```"num_simulations"```: The number of samples to take within the prior dirstribution.
+    * ```"num_simulations"```: The number of samples to take within the prior distribution.
     * ```"num_rounds"```: The number of rounds if using [multi-round inference](https://www.mackelab.org/sbi/tutorial/03_multiround_inference/).
     * ```"workers"```: The number of workers to use for inference.
 * Conditional Settings:
