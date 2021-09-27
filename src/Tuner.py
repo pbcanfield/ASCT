@@ -1,18 +1,13 @@
-from matplotlib import axes
-from numpy.lib.function_base import average
-import scipy as sp
 from src.Optimizer import Optimizer
 from src.Cell import Cell
 from src.SummaryNet import SummaryCNN
 from neuron import h
-import itertools
 import os
-from scipy.stats.stats import pearsonr 
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
-from scipy.signal import find_peaks
 import math
+import torch
 
 
 #This class uses the Cell and Optimizer classes to
@@ -66,6 +61,7 @@ class CellTuner:
         self.__optimizer = Optimizer(self.__to_optimize, optimization_parameters, parameter_range, summary_funct, *args, **kwargs)
 
         self.__parameter_samples = []
+        self.__target_responses = None
 
         self.NUM_SAMPLES = 1000
 
@@ -119,7 +115,11 @@ class CellTuner:
 
             self.__optimizer.set_observed_stats(stats)
         else:
-            self.__optimizer.set_observed_stats(self.__target_responses)
+            data = torch.empty((len(self.__current_injections),1024))
+            for index,response in enumerate(self.__target_responses):
+                data[index] = torch.from_numpy(response).float()
+
+            self.__optimizer.set_observed_stats(data.flatten())
 
     #Wrapper function which automatically chooses which function to call based on
     #set parameters.

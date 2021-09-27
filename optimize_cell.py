@@ -15,17 +15,25 @@ def tune_with_template(config_data, *args, **kwargs):
     run = config_data['run']
     settings = config_data['optimization_settings']
     parameters = config_data['optimization_parameters']
-    summary = config_data['summary']
+    
+    summary = {}
+    summary_function = None
+    if 'summary' not in config_data and manifest['architecture'] == 'summary':
+        print('Invalid config file.')
+        return
 
-    #Lets load the summary function into memory.
-    summary['summary_file'] = summary['summary_file'].replace('.py','').replace('/','.')
+    elif 'summary' in config_data:
+        summary = config_data['summary']
 
-    summary_module = importlib.import_module(summary['summary_file'])
-    summary_function = getattr(summary_module, summary['function_name'])
+        #Lets load the summary function into memory.
+        summary['summary_file'] = summary['summary_file'].replace('.py','').replace('/','.')
 
-    #Now remove the file and function name from the dictionary.
-    del summary['summary_file']
-    del summary['function_name']
+        summary_module = importlib.import_module(summary['summary_file'])
+        summary_function = getattr(summary_module, summary['function_name'])
+
+        #Now remove the file and function name from the dictionary.
+        del summary['summary_file']
+        del summary['function_name']
 
     if not kwargs['c_mod']:
         modfiles_dir = None
