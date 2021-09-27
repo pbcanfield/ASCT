@@ -58,8 +58,6 @@ class Optimizer():
         self.__inj_time = inj_time
         self.__i_inj = i_inj
         self.__v_init = v_init
-        self.__steps_per_ms = 32**2 / sim_run_time #NOTE: The 96**2 has to be fixed because of the CNN implemenation.
-                                                       #This fixes the number of data points to be 32^2.
 
     def set_simulation_optimization_params(self, param_list):
         self.__cell_optimization_params = param_list
@@ -119,8 +117,6 @@ class Optimizer():
         #Set simulation parameters.
         h.tstop = self.__sim_run_time
         h.v_init = self.__v_init
-        h.dt = 1/self.__steps_per_ms
-        h.steps_per_ms = self.__steps_per_ms
         
         #Set current clamp values.
         self.__i_clamp.dur = self.__inj_time

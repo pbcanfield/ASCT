@@ -72,7 +72,6 @@ def main(config_file, outfile, SHOW_GENERATED=True):
         fig.tight_layout()        
         plt.show()
 
-
     responses = np.stack(responses, axis=0).T
 
     #Save the csv

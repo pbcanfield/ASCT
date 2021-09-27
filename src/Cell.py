@@ -1,6 +1,7 @@
 from neuron import h
 import matplotlib.pyplot as plt
 import numpy as np
+from scipy import signal
 
 
 #This class takes a NEURON HOC file as an input creates a wrapper
@@ -39,11 +40,11 @@ class Cell:
 
     #Return the membrane potential neuron vector as a numpy array.
     def get_potential_as_numpy(self):
-        return np.resize(self.__mem_potential.as_numpy(),32**2)
+        return signal.resample(self.__mem_potential.as_numpy(),32**2)
     
     #Return the time vector as a numpy array.
     def get_time_as_numpy(self):
-        return np.resize(self.__time.as_numpy(),32**2)
+        return signal.resample(self.__time.as_numpy(),32**2)
 
     #Graph the membrane vs time graph based on whatever is in membrane voltage 
     #and time vectors.

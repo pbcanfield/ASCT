@@ -228,13 +228,19 @@ class CellTuner:
             if current_injection_length > 1:
                 for index in range(current_injection_length):
                     ax = plt.Subplot(fig,inner[index])
+                    if index == 0:
+                        ax.set_title("Solution: %d" % i)
+                    if index != current_injection_length - 1:
+                        ax.xaxis.set_visible(False)
                     ax.plot(self.__time, self.__target_responses[index], label='Target')
                     ax.plot(self.__time, found_responses[index], label='Found')
+                    ax.set_ylabel(self.__current_injections[index])
                     fig.add_subplot(ax)
             else:
                 ax = plt.Subplot(fig,inner[0])
                 ax.plot(self.__time, self.__target_responses[0], label='Target')
                 ax.plot(self.__time, found_responses[0], label='Found')
+                ax.set_ylabel(self.__current_injections[0])
                 fig.add_subplot(ax)
 
         handles, labels = plt.gca().get_legend_handles_labels()
