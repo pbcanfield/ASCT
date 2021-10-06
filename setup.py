@@ -6,7 +6,7 @@ with open("README.md", "r") as fh:
 
 setup(
     name="asct",
-    version="0.0.1",
+    version="0.0.7",
     author="Pete Canfield",
     author_email="pbczgf@umsystem.edu",
     description="Automated Single Cell Tuner",
@@ -21,7 +21,6 @@ setup(
         'numpy',
         'scipy',
         'torch',
-        'os',
         'tqdm'
     ],
     classifiers=[
@@ -37,7 +36,7 @@ setup(
     packages=find_packages(exclude=['tests']),
     entry_points={
         'console_scripts': [
-            'asct = asci.cli.optimize_cell:main'
+            'asct = asct.optimize_cell:main'
         ]
     }
 )
