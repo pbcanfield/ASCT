@@ -6,6 +6,14 @@ import json
 import csv
 from datetime import datetime
 import importlib
+import os
+
+#Takes a string and appends it to a log file.
+#This is terribly inefficient but it shouldnt really matter because we arent writing that much info.
+def log_ouput(s_input, file_dir):
+    file = open(file_dir, 'a')
+    file.write(s_input)
+    file.close()
 
 def tune_with_template(config_data, *args, **kwargs):
 
@@ -18,6 +26,14 @@ def tune_with_template(config_data, *args, **kwargs):
     
     summary = {}
     summary_function = None
+
+    log = kwargs['log']
+    log_name = 'tuning_logs/tuning_log_%s.log' % datetime.now().strftime("%m_%d_%Y|%H:%M:%S")
+    
+    if log:
+        if not os.path.isdir('tuning_logs'):
+            os.mkdir('tuning_logs')
+
     if 'summary' not in config_data and manifest['architecture'] == 'summary':
         print('Invalid config file.')
         return
@@ -63,13 +79,15 @@ def tune_with_template(config_data, *args, **kwargs):
 
         tuner.find_best_parameter_sets()
         
-        print('The optimizer found the following parameter set:')
-        print(tuner.get_optimial_parameter_sets(kwargs['result_threshold']))
+        s_out = 'The optimizer found the following parameter set:\n' + str(tuner.get_optimial_parameter_sets(kwargs['result_threshold']))
+        print(s_out)
+        if log:
+            log_ouput(s_out,log_name)
 
-        print('Relative Percent Error from ground truth:')
-        print(tuner.compare_found_parameters_to_ground_truth(parameters['ground_truth'],kwargs['result_threshold']))
-
-        #print('The matching ratio is: %f (closer to 1 is better)' % tuner.get_matching_ratio())
+        s_out = 'Relative Percent Error from ground truth:\n' + str(tuner.compare_found_parameters_to_ground_truth(parameters['ground_truth'],kwargs['result_threshold']))
+        print(s_out)
+        if log:
+            log_ouput(s_out,log_name)
 
         tuner.generate_target_from_model()
         tuner.compare_found_solution_to_target(kwargs['result_threshold'],kwargs['display'],kwargs['save_dir'])
@@ -87,9 +105,10 @@ def tune_with_template(config_data, *args, **kwargs):
                                           num_rounds=settings['num_rounds'])
 
         tuner.find_best_parameter_sets()
-        
-        print('The optimizer found the following parameter set:')
-        print(tuner.get_optimial_parameter_sets(kwargs['result_threshold']))
+        s_out = 'The optimizer found the following parameter set:\n' + str(tuner.get_optimial_parameter_sets(kwargs['result_threshold']))
+        print(s_out)
+        if log:
+            log_ouput(s_out,log_name)
 
         tuner.compare_found_solution_to_target(kwargs['result_threshold'],kwargs['display'],kwargs['save_dir'])
 

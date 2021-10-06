@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import math
 import torch
+from tqdm import tqdm
 
 
 #This class uses the Cell and Optimizer classes to
@@ -184,10 +185,8 @@ class CellTuner:
             self.generate_target_from_model()
 
         #sort all the paramter samples based on performance (cosine correlation.)
-        
-        print('Generating sample performance for %d samples' % self.NUM_SAMPLES)
         parameter_ranking = []
-        for pset in self.__parameter_samples:
+        for pset in tqdm(self.__parameter_samples,desc='Generating sample performance for %d samples' % self.NUM_SAMPLES):
             parameter_ranking.append((self.compute_correlation_for_parameter_set(pset), pset))
         
         #Now sort the parameter sets.
@@ -229,7 +228,7 @@ class CellTuner:
                 for index in range(current_injection_length):
                     ax = plt.Subplot(fig,inner[index])
                     if index == 0:
-                        ax.set_title("Solution: %d" % i)
+                        ax.set_title("Solution: %d" % (i+1))
                     if index != current_injection_length - 1:
                         ax.xaxis.set_visible(False)
                     ax.plot(self.__time, self.__target_responses[index], label='Target')
@@ -266,14 +265,19 @@ class CellTuner:
 
     #def generate_found_FI_curve(self, display=False, save_dir=None):
 
-    #Return a list of dictionaries containing the parameter names as keys and the found parmeter as the values
+    #Return a string containing the parameter names as keys and the found parmeter as the values
     #for the top n values.
     def get_optimial_parameter_sets(self, top_n=1):        
         p_list = []
         for index in range(top_n):
             p_list.append(dict(zip(self.__optimizer.get_simulation_optimization_params(), self.__found_parameters[index])))
+
+        formated_output = ''
         
-        return p_list
+        for index, solution in enumerate(p_list):
+            formated_output = formated_output + 'Solution %d: ' % (index + 1) + str(solution) + '\n'
+        
+        return formated_output
 
     #Compare the found parameter sets to the ground truth parameters.
     def compare_found_parameters_to_ground_truth(self, ground_truth, top_n=1):
