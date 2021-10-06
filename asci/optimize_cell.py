@@ -137,8 +137,7 @@ def load_current_injections_from_csv(file_dir):
     responses = [np.array(e,dtype=float) for e in responses]
     return responses
     
-
-if __name__ == '__main__':
+def main():
     argument_parser = argparse.ArgumentParser(description='Uses SBI to find optimal parameter sets for biologically realistic neuron simulations.')
 
     argument_parser.add_argument('config_dir', type=str, help='the optimization config file directory')
@@ -153,4 +152,7 @@ if __name__ == '__main__':
     config_data = parse_config(args.config_dir)
 
     tune_with_template(config_data, save_dir=args.save_dir, display=args.g, result_threshold=args.n, c_mod=args.c, log=args.l)
+
+if __name__ == '__main__':
+    main()
     
