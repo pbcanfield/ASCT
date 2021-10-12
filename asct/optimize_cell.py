@@ -1,5 +1,4 @@
 import numpy as np
-from numpy.core.fromnumeric import reshape
 from src.Tuner import CellTuner
 import argparse
 import json
@@ -136,7 +135,7 @@ def load_current_injections_from_csv(file_dir):
     
     responses = [np.array(e,dtype=float) for e in responses]
     return responses
-    
+
 def main():
     argument_parser = argparse.ArgumentParser(description='Uses SBI to find optimal parameter sets for biologically realistic neuron simulations.')
 
