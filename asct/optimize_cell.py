@@ -1,5 +1,5 @@
 import numpy as np
-from src.Tuner import CellTuner
+from asct.src.Tuner import CellTuner
 import argparse
 import json
 import csv
