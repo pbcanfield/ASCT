@@ -1,6 +1,6 @@
-from src.Optimizer import Optimizer
-from src.Cell import Cell
-from src.SummaryNet import SummaryCNN
+from asct.src.Optimizer import Optimizer
+from asct.src.Cell import Cell
+from asct.src.SummaryNet import SummaryCNN
 from neuron import h
 import os
 import numpy as np

@@ -13,3 +13,7 @@ src/__pycache__/
 run_sweep.py
 tuning_logs/
 *.csv
+.vscode/
+asct.egg-info/
+build/
+dist/
