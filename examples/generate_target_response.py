@@ -1,11 +1,10 @@
-from  src.Cell import Cell
-from src.Optimizer import Optimizer
+from asct.src.Cell import Cell
+from asct.src.Optimizer import Optimizer
 from neuron import h
 import numpy as np
 import os
 import json
 import matplotlib.pyplot as plt
-import matplotlib.gridspec as gridspec
 import sys
 
 def parse_config(config_directory):

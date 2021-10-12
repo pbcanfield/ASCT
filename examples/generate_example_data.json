@@ -1,0 +1,18 @@
+{
+    "manifest": {
+        "template_name": "CA3PyramidalCell",
+        "template_dir": "CA3Cell_Qian/CA3.hoc",
+        "modfiles_dir": "CA3Cell_Qian/modfiles"
+      },      
+      "run": {
+        "tstop": 400,
+        "delay": 10,
+        "duration": 300
+      },
+      "conditions": {
+        "v_init": -75.0
+      },
+      "optimization_parameters": {
+        "current_injections": [0.2,0.3,0.4,0.5,0.6]
+      }
+}

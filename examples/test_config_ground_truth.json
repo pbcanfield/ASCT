@@ -4,9 +4,9 @@
         "architecture": "summary",
         "template_name": "CA3PyramidalCell",
         "target_template_name": "CA3PyramidalCell",
-        "template_dir": "cells/CA3Cell_Qian/CA3.hoc",
-        "target_template_dir": "cells/CA3Cell_Qian/CA3.hoc",
-        "modfiles_dir": "cells/CA3Cell_Qian/modfiles"
+        "template_dir": "CA3Cell_Qian/CA3.hoc",
+        "target_template_dir": "CA3Cell_Qian/CA3.hoc",
+        "modfiles_dir": "CA3Cell_Qian/modfiles"
       },
       "summary":{
         "summary_file": "test_summary.py",

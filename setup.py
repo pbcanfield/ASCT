@@ -6,7 +6,7 @@ with open("README.md", "r") as fh:
 
 setup(
     name="asct",
-    version="0.1.2",
+    version="0.0.1",
     author="Pete Canfield",
     author_email="pbczgf@umsystem.edu",
     description="Automated Single Cell Tuner",
