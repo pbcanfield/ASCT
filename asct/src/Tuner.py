@@ -69,7 +69,7 @@ class CellTuner:
         self.__parameter_samples = []
         self.__target_responses = None
 
-        self.NUM_SAMPLES = 10
+        self.NUM_SAMPLES = 1000
 
     def run_forward_pass(self, input):
         out = self.__embedding_net(input)
