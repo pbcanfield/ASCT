@@ -8,8 +8,8 @@ import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import math
 import torch
+import platform
 from tqdm import tqdm
-
 
 #This class uses the Cell and Optimizer classes to
 #optimize a set of current injections based on
@@ -46,11 +46,16 @@ class CellTuner:
         
 
         if modfiles_dir != None:
-            #First lets try to compile our modfiles.
-            if os.system('nrnivmodl %s' % modfiles_dir) == 0:
-                print("Compiled Successfully.")
-            else:
-                print("Could not compile the modfiles at %s" % modfiles_dir)
+            if platform.system() == 'Linux':
+                #First lets try to compile our modfiles.
+                if os.system('nrnivmodl %s' % modfiles_dir) == 0:
+                    print("Compiled Successfully.")
+                else:
+                    print("Could not compile the modfiles at %s" % modfiles_dir)
+            elif platform.system() == 'Windows':
+                print('Automatic modfile compilation has not yet been implemented for windows, included modfiles directory will not be used.')
+                
+
 
         #Now load in the standard run hoc.
         h.load_file('stdrun.hoc')
@@ -64,7 +69,7 @@ class CellTuner:
         self.__parameter_samples = []
         self.__target_responses = None
 
-        self.NUM_SAMPLES = 1000
+        self.NUM_SAMPLES = 10
 
     def run_forward_pass(self, input):
         out = self.__embedding_net(input)
@@ -248,6 +253,7 @@ class CellTuner:
 
         if display:  
             fig.show()
+            plt.show()
         
         if save_dir != None:
             fig.savefig(save_dir,bbox_inches='tight')

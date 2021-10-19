@@ -6,13 +6,7 @@ import csv
 from datetime import datetime
 import importlib
 import os
-
-#Takes a string and appends it to a log file.
-#This is terribly inefficient but it shouldnt really matter because we arent writing that much info.
-def log_ouput(s_input, file_dir):
-    file = open(file_dir, 'a')
-    file.write(s_input)
-    file.close()
+import logging
 
 def tune_with_template(config_data, *args, **kwargs):
 
@@ -27,11 +21,14 @@ def tune_with_template(config_data, *args, **kwargs):
     summary_function = None
 
     log = kwargs['log']
-    log_name = 'tuning_logs/tuning_log_%s.log' % datetime.now().strftime("%m_%d_%Y|%H:%M:%S")
+    log_name = 'tuning_logs/tuning_log_%s.log' % datetime.now().strftime("%m_%d_%Y-%H_%M_%S")
     
     if log:
         if not os.path.isdir('tuning_logs'):
             os.mkdir('tuning_logs')
+        logging.basicConfig(filename=log_name, level=logging.INFO)
+    else:
+        logging.basicConfig(filename=log_name, level=logging.WARNING)
 
     if 'summary' not in config_data and manifest['architecture'] == 'summary':
         print('Invalid config file.')
@@ -50,11 +47,11 @@ def tune_with_template(config_data, *args, **kwargs):
         del summary['summary_file']
         del summary['function_name']
 
-    if not kwargs['c_mod']:
-        modfiles_dir = None
-    
+    #Check if automatic compilation is enabled.
+    modfiles_dir = manifest['modfiles_dir'] if kwargs['c_mod'] else None
+
     tuner = CellTuner( 
-                      manifest['modfiles_dir'], 
+                      modfiles_dir, 
                       manifest['template_dir'], 
                       manifest['template_name'],
                       parameters['current_injections'],
@@ -78,15 +75,9 @@ def tune_with_template(config_data, *args, **kwargs):
 
         tuner.find_best_parameter_sets()
         
-        s_out = 'The optimizer found the following parameter set:\n' + str(tuner.get_optimial_parameter_sets(kwargs['result_threshold']))
-        print(s_out)
-        if log:
-            log_ouput(s_out,log_name)
-
-        s_out = 'Relative Percent Error from ground truth:\n' + str(tuner.compare_found_parameters_to_ground_truth(parameters['ground_truth'],kwargs['result_threshold']))
-        print(s_out)
-        if log:
-            log_ouput(s_out,log_name)
+        logging.info('The optimizer found the following parameter set:\n' + str(tuner.get_optimial_parameter_sets(kwargs['result_threshold'])))
+        logging.info('Relative Percent Error from ground truth:\n' + str(tuner.compare_found_parameters_to_ground_truth(parameters['ground_truth'],kwargs['result_threshold'])))
+        
 
         tuner.generate_target_from_model()
         tuner.compare_found_solution_to_target(kwargs['result_threshold'],kwargs['display'],kwargs['save_dir'])
@@ -104,10 +95,8 @@ def tune_with_template(config_data, *args, **kwargs):
                                           num_rounds=settings['num_rounds'])
 
         tuner.find_best_parameter_sets()
-        s_out = 'The optimizer found the following parameter set:\n' + str(tuner.get_optimial_parameter_sets(kwargs['result_threshold']))
-        print(s_out)
-        if log:
-            log_ouput(s_out,log_name)
+        logging.info('The optimizer found the following parameter set:\n' + str(tuner.get_optimial_parameter_sets(kwargs['result_threshold'])))
+        
 
         tuner.compare_found_solution_to_target(kwargs['result_threshold'],kwargs['display'],kwargs['save_dir'])
 
@@ -142,7 +131,7 @@ def main():
     argument_parser.add_argument('config_dir', type=str, help='the optimization config file directory')
     argument_parser.add_argument('save_dir', nargs='?', type=str, default=None, help='[optional] the directory to save figures to')
     argument_parser.add_argument('-g', default=False, action='store_true', help='displays graphics')
-    argument_parser.add_argument('-c', default=False, action='store_true', help='compiles modfiles')
+    argument_parser.add_argument('-c', default=False, action='store_true', help='compiles modfiles automatically (currently only available on linux systems)')
     argument_parser.add_argument('-l', default=False, action='store_true', help='store log files')
     argument_parser.add_argument('-n', default=1, type=int, help='the number of found parameters to show (must be less than the threshold sample size in the optimization config file)')
 

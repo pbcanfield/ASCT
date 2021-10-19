@@ -1,7 +1,7 @@
 __pycache__/
 cells/
 sbi-logs/
-x86_64/
+*/x86_64/
 nap_km_results/
 *.log
 *.png
@@ -12,8 +12,9 @@ submit_tuning_job.sh
 src/__pycache__/
 run_sweep.py
 tuning_logs/
-*.csv
+*.dll
 .vscode/
 asct.egg-info/
 build/
 dist/
+examples/*.json
