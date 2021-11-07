@@ -152,11 +152,12 @@ class Optimizer():
        
         
         if self.__summary:
-            voltage = self.__cell.get_potential_as_numpy()
-            time    = self.__cell.get_time_as_numpy() 
+            voltage, time = self.__cell.resample()
+             
             return self.summary_funct(voltage, time, *self.summary_stat_args, **self.summary_stat_kwargs)
         
-        data = torch.from_numpy(self.__cell.get_potential_as_numpy()).float()
+        voltage, _ = self.__cell.resample()
+        data = torch.from_numpy(voltage).float()
         return data
 
     def multi_channel_wrapper_summary(self, *args, **kwargs):

@@ -158,7 +158,9 @@ class CellTuner:
         for i_inj in self.__current_injections:
             self.__optimizer.set_simulation_params(sim_run_time=self.__sim_run_time, delay=self.__delay, inj_time=self.__inj_time, v_init=self.__v_init, i_inj=i_inj)
             self.__optimizer.simulation_wrapper(parameter_set)
-            found_responses.append(np.copy(self.__to_optimize.get_potential_as_numpy()))
+
+            voltage,_ = self.__to_optimize.resample()
+            found_responses.append(voltage)
         
        
 
@@ -224,7 +226,8 @@ class CellTuner:
             for i_inj in self.__current_injections:
                 self.__optimizer.set_simulation_params(sim_run_time=self.__sim_run_time, delay=self.__delay, inj_time=self.__inj_time, v_init=self.__v_init, i_inj=i_inj)
                 self.__optimizer.simulation_wrapper(self.__found_parameters[i])
-                found_responses.append(np.copy(self.__to_optimize.get_potential_as_numpy()))
+                voltage,_ = self.__to_optimize.resample()
+                found_responses.append(voltage)
             
             #Now plot everything.
             current_injection_length = len(self.__current_injections)
@@ -264,10 +267,12 @@ class CellTuner:
         for i_inj in self.__current_injections:
             self.__sim_environ.set_simulation_params(sim_run_time=self.__sim_run_time, delay=self.__delay, inj_time=self.__inj_time, v_init=self.__v_init, i_inj=i_inj)
             self.__sim_environ.simulation_wrapper()
-            self.__target_responses.append(np.copy(self.__target_cell.get_potential_as_numpy()))
+            voltage,_ = self.__target_cell.resample()
+            self.__target_responses.append(voltage)
 
         #Store this for other functions which need the time vector.
-        self.__time = self.__to_optimize.get_time_as_numpy()
+        _,time = self.__to_optimize.resample()
+        self.__time = time
 
     #def generate_found_FI_curve(self, display=False, save_dir=None):
 
@@ -285,23 +290,6 @@ class CellTuner:
         
         return formated_output
 
-    #Compare the found parameter sets to the ground truth parameters.
-    def compare_found_parameters_to_ground_truth(self, ground_truth, top_n=1):
-        found_parameters = self.get_optimial_parameter_sets(top_n=top_n)
-        
-        error_list = []
-
-        for i in range(len(found_parameters)):
-            rpe = {}
-            for index, parameter_name in enumerate(found_parameters[i]):
-                rpe[parameter_name] = ((found_parameters[i][parameter_name] - ground_truth[index]) / ground_truth[index]) * 100
-            
-            average_rpe = sum([abs(rpe[key]) for key in rpe])/ len(rpe)  #Calculate relative percent error.
-
-            error_list.append((average_rpe, rpe))
-
-        return error_list
-    
     #Compare the best found solution to the target voltage trace and return the error.
     #This returns the average cosine similiarity between all found and target voltage traces.
     def get_best_trace_error(self):

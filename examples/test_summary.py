@@ -1,7 +1,6 @@
 import numpy as np
 from scipy.signal import find_peaks
 
-
 #Important statistcs for an adapting cell
 #Resting membrane potential.
 #Average spike peak?

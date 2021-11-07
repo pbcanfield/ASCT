@@ -6,6 +6,7 @@ import csv
 from datetime import datetime
 import importlib
 import os
+import sys
 import logging
 
 def tune_with_template(config_data, *args, **kwargs):
@@ -38,9 +39,9 @@ def tune_with_template(config_data, *args, **kwargs):
         summary = config_data['summary']
 
         #Lets load the summary function into memory.
-        summary['summary_file'] = summary['summary_file'].replace('.py','').replace('/','.')
-
-        summary_module = importlib.import_module(summary['summary_file'])
+        summary_dir = summary['summary_file']
+        sys.path.append(os.path.dirname(os.path.realpath(summary_dir)))
+        summary_module = importlib.import_module(os.path.basename(summary_dir).replace('.py',''))
         summary_function = getattr(summary_module, summary['function_name'])
 
         #Now remove the file and function name from the dictionary.
@@ -76,9 +77,7 @@ def tune_with_template(config_data, *args, **kwargs):
         tuner.find_best_parameter_sets()
         
         logging.info('The optimizer found the following parameter set:\n' + str(tuner.get_optimial_parameter_sets(kwargs['result_threshold'])))
-        logging.info('Relative Percent Error from ground truth:\n' + str(tuner.compare_found_parameters_to_ground_truth(parameters['ground_truth'],kwargs['result_threshold'])))
         
-
         tuner.generate_target_from_model()
         tuner.compare_found_solution_to_target(kwargs['result_threshold'],kwargs['display'],kwargs['save_dir'])
     
