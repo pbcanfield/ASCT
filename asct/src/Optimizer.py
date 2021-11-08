@@ -5,6 +5,8 @@ from sbi.inference import SNPE, prepare_for_sbi, simulate_for_sbi
 import matplotlib.pyplot as plt
 from sbi.utils.get_nn_models import posterior_nn
 import numpy as np
+
+import pdb
 torch.autograd.set_detect_anomaly(True)
 
 #The job of the optimizer is to take some summary statistics and return a set of parameters which 
@@ -201,18 +203,21 @@ class Optimizer():
         proposal = self.__prior
 
         for _ in range(num_rounds):
+            
             theta, x = simulate_for_sbi(simulator, proposal, num_simulations=num_simulations,num_workers=workers)
             density_estimator = self.__inference.append_simulations(theta, x, proposal=proposal)
             density_estimator.train(show_train_summary=True)
 
             proposal = self.__inference.build_posterior()
             self.__posterior.append(proposal)
+            self.__posterior[-1].set_default_x(self.__observed_stats)
 
             #Set defualt x.
             #Take maximum probability here. Potentially.
-            samples = self.__posterior[-1].sample((1000,), x=self.__observed_stats)
-            log_prob = self.__posterior[-1].log_prob(samples, x=self.__observed_stats, norm_posterior=False)
-            proposal = samples[np.argmax(log_prob)]
+            # pdb.set_trace()
+            # samples = self.__posterior[-1].sample((1000,), x=self.__observed_stats)
+            # log_prob = self.__posterior[-1].log_prob(samples, x=self.__observed_stats, norm_posterior=False)
+            # proposal = samples[np.argmax(log_prob)]
         
         
     def run_inference_learned_stats(self, embedding_net, num_simulations=1000, num_rounds=1, workers=1):        
