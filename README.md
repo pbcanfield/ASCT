@@ -1,5 +1,10 @@
 # Automated Single Cell Tuner (ASCT)
-The aim of this tool is the automate the parameter selection process for biologically realistic neuronal models using [SBI](https://www.mackelab.org/sbi/).
+The aim of this tool is the automate the parameter selection process for biologically realistic neuronal models developed in [NEURON](https://neuron.yale.edu/neuron/) using [SBI](https://www.mackelab.org/sbi/).
+![ASCT Architecture](./figures/ASCT_Architecture.png)
+ASCT is designed to give the user varying amounts of control over their cell optimization tasks. Currently, users have the ability to select from three optimization approaches, each having their own advangates and disadvantages.
+1. **Fully Convolutional Architecture**: Uses a CNN to attempt to learn the relevant features needed to encode current injection responses.
+2. **Fully Summary Statistcs Architecture**: Allows the user to specify their own python function which extracts relevant features via domain knowledge.
+3. **Hybrid Architecture** : Combines the fully CNN based architecure with several well-defined statistcs, bounding the network to consider some specific features at minimum.
 
 ## Installation:
 The installation process differs depending on the platfrom being used, currently only linux and windows have been tested with ASCT.
@@ -42,6 +47,10 @@ From here the user has several options which they can specify depending on their
 
 #### Compiling modfiles on windows:
 It should be noted that currently ASCT does not support automatic modfile compilation on windows. To run parameter inference on these systems, the user will have to compile their own modfiles manually using the ```mkrnrndll``` utility. This will generate a file named ```nrnmech.dll``` which must then be copied into the directory where ASCT is being run.
+
+### Running example code.
+Two examples have been prepared to be used with ASCT and to c
+
 
 ### Configuration file setup.
 The only required argument for ASCT is a user defined json configuration file. This is a file which specifies all relevant information which is needed to infer the parameters a user is interested in. There are five subsections required in every configuration file for ASCT: ```manifest```, ```optimzation_settings```,```run```,```conditions```, and ```optimzation_parameters```. Each subsection has a variety of options which the user can set for a general run, some of which are required, and some are conditional based on the user's job. Here is the general breakdown of a config file by section.
