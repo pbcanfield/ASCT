@@ -8,7 +8,7 @@ Installation on linux should be relatively straight-forward. There are two major
 1. Install via pip ```pip install asct```
 2. Install manually.
     * Download the source code from this github repository ```git clone https://github.com/pbcanfield/ASCT```
-    * Change directory to where the repositort was downloaded ```cd ASCT```
+    * Change directory to where the repository was downloaded ```cd ASCT```
     * Run the setup.py script to install the package locally ```python setup.py install``` (to install normally) or ```python setup.py develop``` (to install in developer mode)
 
 ### Windows installation:
