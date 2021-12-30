@@ -13,6 +13,6 @@
         "v_init": -75.0
       },
       "optimization_parameters": {
-        "current_injections": [0.2,0.3,0.4,0.5,0.6]
+        "current_injections": [0.2,0.3,0.4]
       }
 }

@@ -4,7 +4,6 @@ sbi-logs/
 */x86_64/
 nap_km_results/
 *.log
-*.png
 templates/
 results/*
 results*/
@@ -19,4 +18,6 @@ tuning_logs/
 asct.egg-info/
 build/
 dist/
-examples/*.json
+examples/*.dll
+examples/sbi_logs/*
+examples/tuning_logs/*

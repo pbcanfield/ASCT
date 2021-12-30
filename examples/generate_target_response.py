@@ -49,13 +49,12 @@ def main(config_file, outfile, SHOW_GENERATED=True):
         sim_environ.set_simulation_params(sim_run_time=sim_run_time, delay=delay, inj_time=inj_time, v_init=v_init,i_inj=i_inj)
         sim_environ.simulation_wrapper()
 
-        responses.append(np.copy(target_cell.get_potential_as_numpy()))
+
+        voltage,time = target_cell.resample()
+        responses.append(voltage)
     
 
     if SHOW_GENERATED:
-        time = np.linspace(0,sim_run_time * 1e-3,1024)
-
-      
         #Now plot everything.
         current_injection_length = len(responses)
         fig,axes = plt.subplots(current_injection_length)

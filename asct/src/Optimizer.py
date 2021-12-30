@@ -130,16 +130,26 @@ class Optimizer():
         self.__i_clamp.amp = self.__i_inj
         self.__i_clamp.delay = self.__delay
         
+        try:
+            #Set parameters based on the parameters list.
+            cell = self.__cell.get_cell()
+            if self.__cell_optimization_params != None:
+                for sec in cell.all:
+                    for index, key in enumerate(self.__cell_optimization_params):
+                        setattr(sec, key, args[0][index]) 
 
-        #Set parameters based on the parameters list.
-        cell = self.__cell.get_cell()
-        if self.__cell_optimization_params != None:
+            #Set cell parameters in all sections based on the kwargs.
             for sec in cell.all:
+                for key in kwargs:
+                    setattr(sec, key, kwargs[key]) 
+        except AttributeError: #This is the case for the Izhi cells. Izhicell parameters must be in a IzhiSoma object.
+            #Set parameters based on the parameters list.
+            sec = self.__cell.get_cell().IzhiSoma
+            if self.__cell_optimization_params != None:
                 for index, key in enumerate(self.__cell_optimization_params):
                     setattr(sec, key, args[0][index]) 
 
-        #Set cell parameters in all sections based on the kwargs.
-        for sec in cell.all:
+            #Set cell parameters in all sections based on the kwargs.
             for key in kwargs:
                 setattr(sec, key, kwargs[key]) 
 
@@ -214,7 +224,6 @@ class Optimizer():
 
             #Set defualt x.
             #Take maximum probability here. Potentially.
-            # pdb.set_trace()
             # samples = self.__posterior[-1].sample((1000,), x=self.__observed_stats)
             # log_prob = self.__posterior[-1].log_prob(samples, x=self.__observed_stats, norm_posterior=False)
             # proposal = samples[np.argmax(log_prob)]
