@@ -9,6 +9,8 @@ import matplotlib.gridspec as gridspec
 import math
 import torch
 import platform
+import sys
+import importlib
 from tqdm import tqdm
 
 #This class uses the Cell and Optimizer classes to
@@ -30,7 +32,7 @@ from tqdm import tqdm
 
 
 class CellTuner:
-    def __init__(self, modfiles_dir, template_dir, template_name, current_injections, optimization_parameters, parameter_range, architecture='summary', summary_funct = None, features=8,*args, **kwargs):
+    def __init__(self, modfiles_dir, wrapper_dir, wrapper_name, current_injections, optimization_parameters, parameter_range, architecture='summary', summary_funct = None, features=8,*args, **kwargs):
         
         #Store the current injection list and the spike threshold.
         self.__current_injections = current_injections
@@ -60,9 +62,13 @@ class CellTuner:
         #Now load in the standard run hoc.
         h.load_file('stdrun.hoc')
 
+        sys.path.append(os.path.dirname(os.path.realpath(wrapper_dir)))
+        wrapper_module = importlib.import_module(os.path.basename(wrapper_dir).replace('.py',''))
+        invoke_cell = getattr(wrapper_module, wrapper_name)()
+
         #Set up the cell and the optimizer. This will be responsible for optimizing the given cell
         #at each current injection value.
-        self.__to_optimize = Cell(template_dir, template_name)
+        self.__to_optimize = invoke_cell
 
         self.__optimizer = Optimizer(self.__to_optimize, optimization_parameters, parameter_range, summary_funct, *args, **kwargs)
 
@@ -84,8 +90,12 @@ class CellTuner:
 
     #Calculate the target summary statistics based on a provided HOC model.
     #If CNN is activated and not yet trained, train it.
-    def calculate_target_stats_from_model(self, template_dir, template_name):    
-        self.__target_cell = Cell(template_dir, template_name)
+    def calculate_target_stats_from_model(self, wrapper_dir, wrapper_name):    
+        sys.path.append(os.path.dirname(os.path.realpath(wrapper_dir)))
+        wrapper_module = importlib.import_module(os.path.basename(wrapper_dir).replace('.py',''))
+        invoke_cell = getattr(wrapper_module, wrapper_name)()
+        
+        self.__target_cell = invoke_cell()
         
         #Create a temporary optimizer which is used to get the target
         #statistics from the target cell at each current injection.

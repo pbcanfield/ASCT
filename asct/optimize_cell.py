@@ -53,8 +53,8 @@ def tune_with_template(config_data, *args, **kwargs):
 
     tuner = CellTuner( 
                       modfiles_dir, 
-                      manifest['template_dir'], 
-                      manifest['template_name'],
+                      manifest['wrapper_dir'], 
+                      manifest['wrapper_name'],
                       parameters['current_injections'],
                       parameters['parameters'], 
                       (parameters['lows'], parameters['highs']), 
@@ -67,7 +67,7 @@ def tune_with_template(config_data, *args, **kwargs):
     
     #We need to check if we are validating against a ground truth model or if we are tuning from input data.
     if manifest['job_type'] == 'ground_truth':
-        tuner.calculate_target_stats_from_model(manifest['target_template_dir'], manifest['target_template_name'])
+        tuner.calculate_target_stats_from_model(manifest['target_wrapper_dir'], manifest['target_wrapper_name'])
         
         tuner.optimize_current_injections(num_simulations=settings['num_simulations'],
                                           inference_workers=settings['workers'], 

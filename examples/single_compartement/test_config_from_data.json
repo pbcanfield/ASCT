@@ -2,8 +2,8 @@
     "manifest": {
         "job_type": "from_data",
         "architecture": "convolution",
-        "template_name": "CA3PyramidalCell",
-        "template_dir": "CA3Cell_Qian/CA3.hoc",
+        "wrapper_name": "CellToOptimize",
+        "wrapper_dir": "cell_wrapper.py",
         "modfiles_dir": "CA3Cell_Qian/modfiles",
         "input_data": "example_data.csv"
       },

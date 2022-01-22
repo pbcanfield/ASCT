@@ -89,11 +89,11 @@ ENDCOMMENT
 INDEPENDENT {t FROM 0 TO 1 WITH 1 (ms)}
 
 NEURON {
-	POINT_PROCESS Gfluct2_exc
+	POINT_PROCESS Gfluct2_inh
 	RANGE g_e, g_i, E_e, E_i, g_e0, g_i0, g_e1, g_i1
 	RANGE std_e, std_i, tau_e, tau_i, D_e, D_i
-	RANGE new_seed,i_exc
-	NONSPECIFIC_CURRENT i_exc
+	RANGE new_seed,i_inh
+	NONSPECIFIC_CURRENT i_inh
 	THREADSAFE
 	POINTER randObjPtr
 }
@@ -172,8 +172,8 @@ BREAKPOINT {
 	if(g_e < 0) { g_e = 0 }
 	g_i = g_i0 + g_i1
 	if(g_i < 0) { g_i = 0 }
-	i_exc=g_e * (v - E_e)
-	:i_inh=g_i * (v - E_i)
+	:i_exc=g_e * (v - E_e)
+	i_inh=g_i * (v - E_i)
 	:i = g_e * (v - E_e) + g_i * (v - E_i)
 	:i = i_exc + i_inh
 }

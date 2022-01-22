@@ -16,7 +16,7 @@ class Optimizer():
     #This function initializes SBI and sets the summary_stats function and
     #The target summary stats.
     #Arguments:
-    #   1) The target cell to optimize (Cell Object).
+    #   1) The target cell to optimize (Cell Subclass Object).
     #   2) A list of parameters to optimize.
     #   2) A parameter range tuple which consists of the lower and upper parameter values.
     #   3) a summary_stat function which calculates the summary statistics for the optimizer.
@@ -129,29 +129,13 @@ class Optimizer():
         self.__i_clamp.dur = self.__inj_time
         self.__i_clamp.amp = self.__i_inj
         self.__i_clamp.delay = self.__delay
-        
-        try:
-            #Set parameters based on the parameters list.
-            cell = self.__cell.get_cell()
-            if self.__cell_optimization_params != None:
-                for sec in cell.all:
-                    for index, key in enumerate(self.__cell_optimization_params):
-                        setattr(sec, key, args[0][index]) 
+    
+        #Set parameters based on the parameters list.
+        if self.__cell_optimization_params != None:
+            self.__cell.set_parameters(self.__cell_optimization_params, args[0])
 
-            #Set cell parameters in all sections based on the kwargs.
-            for sec in cell.all:
-                for key in kwargs:
-                    setattr(sec, key, kwargs[key]) 
-        except AttributeError: #This is the case for the Izhi cells. Izhicell parameters must be in a IzhiSoma object.
-            #Set parameters based on the parameters list.
-            sec = self.__cell.get_cell().IzhiSoma
-            if self.__cell_optimization_params != None:
-                for index, key in enumerate(self.__cell_optimization_params):
-                    setattr(sec, key, args[0][index]) 
-
-            #Set cell parameters in all sections based on the kwargs.
-            for key in kwargs:
-                setattr(sec, key, kwargs[key]) 
+        #Set cell parameters in all sections based on the kwargs.
+        self.__cell.set_parameters(list(kwargs.keys()), list(kwargs.values()))
 
         #Run the simulation with the given parameters.
         h.run()

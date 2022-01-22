@@ -2,10 +2,10 @@
     "manifest": {
         "job_type": "ground_truth",
         "architecture": "convolution",
-        "template_name": "CA3Cell",
-        "target_template_name": "CA3Cell",
-        "template_dir": "CA3Cell_Izh/CA3.hoc",
-        "target_template_dir": "CA3Cell_Izh/CA3.hoc",
+        "wrapper_name": "CellToOptimize",
+        "target_wrapper_name": "ModelCell",
+        "wrapper_dir": "cell_wrapper.py",
+        "target_wrapper_dir": "cell_wrapper.py",
         "modfiles_dir": "CA3Cell_Izh/modfiles"
       },
       "summary":{

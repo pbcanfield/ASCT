@@ -1,10 +1,9 @@
+from abc import abstractmethod
 from neuron import h
 import matplotlib.pyplot as plt
 from scipy import signal
 
-
-#This class takes a NEURON HOC file as an input creates a wrapper
-#which can be run by sbi for simulation data.
+#This is the base class for all cell wrapper objects reqiured for ASCT to run.
 class Cell:
 
     #Constructs a Cell object.
@@ -12,30 +11,17 @@ class Cell:
     #   1) The HOC template directory.
     #   2) The HOC object name for the given cell.
     #   3) The summary statistics function.
-    def __init__(self, template_dir, template_name):
-        
-        #Load the template directory.
-        h.load_file(template_dir)
-
-        #Get the cell from the h object.
-        invoke_cell = getattr(h, template_name)
-       
-        #Exctract the cell object itself.
-        self.__cell = invoke_cell()
-
+    def __init__(self):
         #Initialize vectors to track membrane voltage.
         self.__mem_potential = h.Vector()
         self.__time = h.Vector()
 
+       
+    def record_section(self, cell_section):
         #Record time and membrane potential.
         self.__time.record(h._ref_t)
-        self.__mem_potential.record(self.__cell.soma[0](0.5)._ref_v) #This line means that all cell templates must
-                                                                     #have a soma array with at least one soma
-                                                                     # element in it.
+        self.__mem_potential.record(cell_section) 
 
-    #Return the neuron cell onject.
-    def get_cell(self):
-        return self.__cell
 
     #Resamples the membrane voltage and time vectors
     def resample(self):
@@ -55,3 +41,7 @@ class Cell:
             plt.savefig(save_img_dir)
         
         plt.show()
+
+    @abstractmethod
+    def set_parameters(self,parameter_list,parameter_values):
+        pass
