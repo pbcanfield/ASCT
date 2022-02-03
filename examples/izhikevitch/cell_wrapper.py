@@ -6,7 +6,7 @@ from neuron import h
 
 class CellToOptimize(Cell):
     def __init__(self):
-        super(CellToOptimize, self).__init__()
+        
         
         #Load in the cell via hoc file.
         template_name = "CA3Cell"
@@ -19,19 +19,21 @@ class CellToOptimize(Cell):
         self.__cell = invoke_cell()
 
         #Required_line, this cell wrapper must tell the super class what to record for voltage.
-        Cell.record_section(self.__cell.soma[0](0.5)._ref_v)
+        super(CellToOptimize, self).__init__()
 
-    #Required function
+    #REQUIRED FUNCTION
     def set_parameters(self,parameter_list,parameter_values):
         sec = self.__cell.IzhiSoma
         for index, key in enumerate(parameter_list):
             setattr(sec, key, parameter_values[index])
 
-
+    #REQUIRED FUNCTION
+    def get_recording_section(self):
+        return self.__cell.soma[0](0.5)
 
 class ModelCell(Cell):
     def __init__(self):
-        super(ModelCell, self).__init__()
+        
         
         #Load in the cell via hoc file.
         template_name = "CA3Cell"
@@ -44,10 +46,14 @@ class ModelCell(Cell):
         self.__cell = invoke_cell()
 
         #Required_line, this cell wrapper must tell the super class what to record for voltage.
-        Cell.record_section(self.__cell.soma[0](0.5)._ref_v)
+        super(ModelCell, self).__init__()
 
-    #Required function
+    #REQUIRED FUNCTION
     def set_parameters(self,parameter_list,parameter_values):
         sec = self.__cell.IzhiSoma
         for index, key in enumerate(parameter_list):
             setattr(sec, key, parameter_values[index])
+    
+    #REQUIRED FUNCTION
+    def get_recording_section(self):
+        return self.__cell.soma[0](0.5)

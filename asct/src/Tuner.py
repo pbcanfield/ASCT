@@ -95,7 +95,7 @@ class CellTuner:
         wrapper_module = importlib.import_module(os.path.basename(wrapper_dir).replace('.py',''))
         invoke_cell = getattr(wrapper_module, wrapper_name)()
         
-        self.__target_cell = invoke_cell()
+        self.__target_cell = invoke_cell
         
         #Create a temporary optimizer which is used to get the target
         #statistics from the target cell at each current injection.

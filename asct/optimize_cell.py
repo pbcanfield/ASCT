@@ -36,7 +36,7 @@ def tune_with_template(config_data, *args, **kwargs):
         print('Invalid config file.')
         return
 
-    elif 'summary' in config_data:
+    if 'summary' in config_data and manifest['architecture'] == 'summary':
         summary = config_data['summary']
 
         #Lets load the summary function into memory.
