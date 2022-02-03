@@ -24,9 +24,10 @@ def tune_with_template(config_data, *args, **kwargs):
     log = kwargs['log']
     log_name = 'tuning_logs/tuning_log_%s.log' % datetime.now().strftime("%m_%d_%Y-%H_%M_%S")
     
-    if log:
-        if not os.path.isdir('tuning_logs'):
+    if not os.path.isdir('tuning_logs'):
             os.mkdir('tuning_logs')
+            
+    if log:
         logging.basicConfig(filename=log_name, level=logging.INFO)
     else:
         logging.basicConfig(filename=log_name, level=logging.WARNING)

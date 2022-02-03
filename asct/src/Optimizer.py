@@ -38,7 +38,7 @@ class Optimizer():
         #Set the default simulation parameters.
         self.set_simulation_params()
         
-        self.__i_clamp = h.IClamp(cell.get_cell().soma[0](0.5))
+        self.__i_clamp = h.IClamp(cell.get_recording_section())
 
         #Set the parameter list.
         self.__cell_optimization_params = parameter_list
@@ -119,6 +119,7 @@ class Optimizer():
     #   - Each kwarg corresponds to a parameter to be set. For instance,
     #   kwargs['gbar_natCA3'] = 0.1 would mean set cell.gbar_natCA3 = 0.1.
     def simulation_wrapper(self, *args, **kwargs):
+        
         #Set simulation parameters.
         h.tstop = self.__sim_run_time
         h.v_init = self.__v_init

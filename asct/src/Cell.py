@@ -16,11 +16,9 @@ class Cell:
         self.__mem_potential = h.Vector()
         self.__time = h.Vector()
 
-       
-    def record_section(self, cell_section):
         #Record time and membrane potential.
         self.__time.record(h._ref_t)
-        self.__mem_potential.record(cell_section) 
+        self.__mem_potential.record(self.get_recording_section()._ref_v)
 
 
     #Resamples the membrane voltage and time vectors
@@ -42,6 +40,14 @@ class Cell:
         
         plt.show()
 
+    #Required abstract method which implements how parameters are set
+    #in the cell wrapper.
     @abstractmethod
     def set_parameters(self,parameter_list,parameter_values):
         pass
+
+    #Required abstract method which defines what section is being recorded
+    #for voltages.
+    @abstractmethod
+    def get_recording_section(self):
+            pass
