@@ -6,9 +6,6 @@ import pandas as pd
 from typing import List, Optional, Sequence, Dict, Union, TypeVar
 from enum import Enum
 
-from cell_inference.utils.currents.currentinjection import CurrentInjection
-from cell_inference.utils.currents.synapse import Synapse
-
 _T = TypeVar("_T", bound=Sequence)
 
 h.load_file('stdrun.hoc')
@@ -55,16 +52,7 @@ class StylizedCell(ABC):
     def set_channels(self) -> str:
         """Abstract method for setting biophysical properties, inserting channels"""
         raise NotImplementedError("Biophysical Channel Properties must be set!")
-
-    @staticmethod
-    def add_injection(self, sec_index, **kwargs) -> None:
-        """Add current injection to a section by its index"""
-        self.injection.append(CurrentInjection(self, sec_index, **kwargs))
-
-    def add_synapse(self, stim: h.NetStim, sec_index: int, **kwargs) -> None:
-        """Add synapse to a section by its index"""
-        self.synapse.append(Synapse(self, stim, sec_index, **kwargs))
-
+        
     #  PRIVATE METHODS
     def __setup_all(self) -> None:
         if self.geometry is not None:

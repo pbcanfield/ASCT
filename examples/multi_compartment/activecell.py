@@ -3,13 +3,10 @@ from neuron import h
 import pandas as pd
 import numpy as np
 from typing import Optional, Union
+import pdb
 
 # Project Imports
-from cell_inference.cells.stylizedcell import StylizedCell
-from cell_inference.utils.currents.recorder import Recorder
-
-h.load_file('stdrun.hoc')
-
+from stylizedcell import StylizedCell
 
 class ActiveCell(StylizedCell):
     """Define single cell model using parent class Stylized_Cell"""
@@ -33,7 +30,6 @@ class ActiveCell(StylizedCell):
         ]
         
         super(ActiveCell, self).__init__(geometry, **kwargs)
-        self.v_rec = self.__record_soma_v()
         
 #         self.set_channels()
 
@@ -58,8 +54,6 @@ class ActiveCell(StylizedCell):
                     default_biophys[i] = biophys[i]
         return default_biophys
 
-    def __record_soma_v(self) -> Recorder:
-        return Recorder(self.soma(.5), 'v')
 
     # PUBLIC METHODS
     def set_channels(self) -> None:
@@ -89,10 +83,3 @@ class ActiveCell(StylizedCell):
             for sec in self.get_sec_by_id(self.grp_ids[entry[0]]):
                 setattr(sec, entry[1], self.biophys[i])
         h.v_init = self._vrest
-
-    def v(self) -> Optional[Union[str, np.ndarray]]:
-        """Return recorded soma membrane voltage in numpy array"""
-        if hasattr(self, 'v_rec'):
-            return self.v_rec.as_numpy()
-        else:
-            raise NotImplemented("Soma Membrane Voltage is Not Being Recorded")
